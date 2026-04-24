@@ -438,16 +438,16 @@ export default function UserProfile() {
 
 /* ── Sub-components ── */
 
-function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
-  return (
-    <button
-      onClick={onToggle}
-      className={`w-12 h-6 rounded-full relative transition-colors duration-300 ${enabled ? 'bg-primary' : 'bg-[#dfdcdc]'}`}
-    >
-      <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all duration-300 ${enabled ? 'right-1' : 'left-1'}`} />
-    </button>
-  )
-}
+// function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
+//   return (
+//     <button
+//       onClick={onToggle}
+//       className={`w-12 h-6 rounded-full relative transition-colors duration-300 ${enabled ? 'bg-primary' : 'bg-[#dfdcdc]'}`}
+//     >
+//       <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all duration-300 ${enabled ? 'right-1' : 'left-1'}`} />
+//     </button>
+//   )
+// }
 
 function QuickCard({ icon, iconColor, iconBg, title, subtitle, linkLabel }: {
   icon: string; iconColor: string; iconBg: string; title: string; subtitle: string; linkLabel: string
