@@ -30,6 +30,22 @@ interface Professional {
   image: string;
 }
 
+interface Appointment {
+  id: number;
+  service: string;
+  businessName: string;
+  businessCategory: string;
+  professionalName: string;
+  professionalRole: string;
+  date: string;
+  time: string;
+  price: number;
+  businessImage: string;
+  status: "upcoming" | "cancelled";
+}
+
+const STORAGE_KEY = "zylo_appointments";
+
 const morningSlots: TimeSlot[] = [
   { id: "09:00", label: "09:00 AM", period: "MORNING" },
   { id: "10:00", label: "10:00 AM", period: "MORNING" },
@@ -77,6 +93,13 @@ const fallbackBusiness: Business = {
   price: 60,
 };
 
+function formatDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 const BusinessProfile: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -88,22 +111,61 @@ const BusinessProfile: React.FC = () => {
   );
   const [selectedProfessional, setSelectedProfessional] = useState<number>(1);
 
-  const days = [
-    { label: "LUN", day: 12 },
-    { label: "MAR", day: 13 },
-    { label: "MIÉ", day: 14 },
-    { label: "JUE", day: 15 },
-    { label: "VIE", day: 16 },
-    { label: "SÁB", day: 17 },
-  ];
+  const baseDate = new Date();
+  const days = Array.from({ length: 6 }, (_, index) => {
+    const date = new Date(baseDate);
+    date.setDate(baseDate.getDate() + index);
+    return {
+      label: date
+        .toLocaleDateString("es-PE", { weekday: "short" })
+        .replace(".", "")
+        .toUpperCase(),
+      day: date.getDate(),
+      monthLabel: date.toLocaleDateString("es-PE", { month: "short" }),
+      fullDate: formatDateKey(date),
+      fullLabel: date.toLocaleDateString("es-PE", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      }),
+    };
+  });
 
   const selectedPro = professionals.find((p) => p.id === selectedProfessional);
+
+  const handleConfirmReservation = () => {
+    if (!selectedTime || !selectedPro) return;
+
+    const newAppointment: Appointment = {
+      id: Date.now(),
+      service: business.bookingTitle,
+      businessName: business.name,
+      businessCategory: business.category,
+      professionalName: selectedPro.name,
+      professionalRole: selectedPro.role,
+      date: days[selectedDateIndex].fullDate,
+      time: selectedTime.label,
+      price: business.price,
+      businessImage: business.image,
+      status: "upcoming",
+    };
+
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const currentAppointments: Appointment[] = raw ? JSON.parse(raw) : [];
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([...currentAppointments, newAppointment])
+    );
+
+    navigate("/home");
+  };
 
   return (
     <div className="bg-[#f9f6f5] text-[#2f2f2e] min-h-screen">
       <HeaderUser />
 
-      <main className="max-w-6xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8">
+      <main className="max-w-6xl mx-auto px-6 pt-28 pb-8 grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8">
         <div className="space-y-8">
           <section className="bg-white rounded-3xl shadow-sm p-5 flex flex-col md:flex-row gap-4 items-start md:items-center">
             <div className="w-full md:w-28 h-28 rounded-2xl overflow-hidden shrink-0">
@@ -163,12 +225,7 @@ const BusinessProfile: React.FC = () => {
               <div className="flex gap-2 text-[#7a7877]">
                 <button className="w-8 h-8 rounded-full bg-[#f2eeec] flex items-center justify-center">
                   <span className="material-symbols-outlined text-sm">
-                    chevron_left
-                  </span>
-                </button>
-                <button className="w-8 h-8 rounded-full bg-[#f2eeec] flex items-center justify-center">
-                  <span className="material-symbols-outlined text-sm">
-                    chevron_right
+                    calendar_month
                   </span>
                 </button>
               </div>
@@ -180,9 +237,9 @@ const BusinessProfile: React.FC = () => {
 
                 return (
                   <button
-                    key={d.day}
+                    key={d.fullDate}
                     onClick={() => setSelectedDateIndex(index)}
-                    className={`w-16 h-20 rounded-2xl flex flex-col items-center justify-center text-sm font-semibold transition-all ${
+                    className={`w-16 h-20 rounded-2xl flex flex-col items-center justify-center text-sm font-semibold transition-all shrink-0 ${
                       isActive
                         ? "bg-[#ff7851] text-white shadow-md"
                         : "bg-[#f5f2f1] text-[#5a5857]"
@@ -190,7 +247,7 @@ const BusinessProfile: React.FC = () => {
                   >
                     <span className="text-[11px] uppercase">{d.label}</span>
                     <span className="text-xl font-extrabold mt-1">{d.day}</span>
-                    <span className="text-[10px] mt-1">Oct</span>
+                    <span className="text-[10px] mt-1">{d.monthLabel}</span>
                   </button>
                 );
               })}
@@ -305,7 +362,7 @@ const BusinessProfile: React.FC = () => {
               <div className="flex justify-between gap-4">
                 <span className="text-[#7a7877]">Fecha</span>
                 <span className="font-semibold text-right">
-                  Martes, {days[selectedDateIndex].day} de Oct
+                  {days[selectedDateIndex].fullLabel}
                 </span>
               </div>
 
@@ -340,7 +397,10 @@ const BusinessProfile: React.FC = () => {
                 </span>
               </div>
 
-              <button className="w-full mt-3 py-3 rounded-full bg-gradient-to-br from-[#d5521b] to-[#ff7851] text-white font-bold text-sm shadow-lg shadow-[#d5521b]/30 active:scale-95 transition-transform">
+              <button
+                onClick={handleConfirmReservation}
+                className="w-full mt-3 py-3 rounded-full bg-gradient-to-br from-[#d5521b] to-[#ff7851] text-white font-bold text-sm shadow-lg shadow-[#d5521b]/30 active:scale-95 transition-transform"
+              >
                 Confirmar reserva
               </button>
 

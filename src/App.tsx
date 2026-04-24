@@ -8,6 +8,7 @@ import Home from "./pages/User/Home";
 import Profile from "./pages/User/Profile";
 import BusinessProfile from "./pages/Business/BusinessProfile";
 import BusinessHome from "./pages/Business/BusinessHome";
+import Reservations from "./pages/User/Reservation";
 
 export default function AppRouter() {
   return (
@@ -19,6 +20,8 @@ export default function AppRouter() {
       <Route path="/profile" element={<Profile />} />
       <Route path="/businessProfile" element={<BusinessProfile />} />
       <Route path="/businessHome" element={<BusinessHome />} />
+      <Route path="/reservation" element={<Reservations />} />
+      <Route path="/reservations" element={<Reservations />} />
     </Routes>
   );
 }
