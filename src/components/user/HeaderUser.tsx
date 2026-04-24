@@ -1,32 +1,95 @@
+import { useState, useEffect } from "react";
+
+/* ── Types ── */
+interface StoredUser {
+  name: string;
+  email: string;
+  phone: string;
+  passwordHash: string;
+  accountType: "user" | "business";
+  createdAt: string;
+  photo?: string;
+  location?: string;
+}
+
+/* ── Storage helpers ── */
+const USERS_KEY = "zylo_users";
+const SESSION_KEY = "zylo_session";
+
+function getSession(): { email: string; name: string } | null {
+  try {
+    return JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+  } catch {
+    return null;
+  }
+}
+
+function getAllUsers(): StoredUser[] {
+  try {
+    return JSON.parse(localStorage.getItem(USERS_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function getCurrentUser(): StoredUser | null {
+  const session = getSession();
+  if (!session) return null;
+  return (
+    getAllUsers().find(
+      (u) => u.email.toLowerCase() === session.email.toLowerCase(),
+    ) ?? null
+  );
+}
+
+/* ── Component ── */
 export default function HeaderBusiness() {
+  const [user, setUser] = useState<StoredUser | null>(null);
+
+  useEffect(() => {
+    const u = getCurrentUser();
+    setUser(u);
+  }, []);
+
+  const displayPhoto = user?.photo ?? null;
+
   return (
     <header className="bg-[#f9f6f5] flex justify-between items-center px-6 py-4 w-full sticky top-0 z-50 shadow-[0_1px_0_rgba(47,47,46,0.06)]">
       <div className="flex items-center gap-3">
-        {/* <span className="material-symbols-outlined text-primary hover:opacity-80 transition-opacity active:scale-95 cursor-pointer">
-          menu
-        </span> */}
-        <h1 className="font-headline font-extrabold tracking-tight text-2xl text-primary italic">
-          Zylo
-        </h1>
+        <a href="/home">
+          <h1 className="font-headline font-extrabold tracking-tight text-2xl text-primary italic">
+            Zylo
+          </h1>
+        </a>
       </div>
+
       <div className="flex items-center gap-4">
         <div className="hidden md:flex gap-6 items-center mr-4">
           <span className="text-primary font-semibold cursor-pointer">
-            Explore
+            Explorar
           </span>
           <span className="text-[#2f2f2e] hover:opacity-80 transition-opacity cursor-pointer">
-            Bookings
+            Reservas
           </span>
           <span className="text-[#2f2f2e] hover:opacity-80 transition-opacity cursor-pointer">
-            Saved
+            Favoritos
           </span>
         </div>
+
         <div className="w-10 h-10 rounded-full bg-[#e4e2e1] overflow-hidden cursor-pointer active:scale-95 transition-transform">
-          <img
-            alt="User Profile"
-            className="w-full h-full object-cover"
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHB8zkpZoN2kISrq7RUrRbk-PO9ktsAo-GH3qPDc41v0iPazhrvoxrMld9BBBjZpYs9ibMGEIAd7hItedp2Riw2NB1zAgtTOwYhURnqGj4P1VnGZnFMqwWCiLjEDIxqIzr8Xxwnkvbga10rYvxGzJpVsepqEffLGw7zz2A-vMPokoDDN-4lYuXHQIZvz-dTSoUFbZP-ElIFZyoiNz8h_HlJ3pVwSlF2u7lyUkrCxsO4-3tTyuKJKwwSC_KW14iXMiMld68YKHRImwR"
-          />
+          <a href="/profile">
+            {displayPhoto ? (
+              <img
+                alt="User Profile"
+                className="w-full h-full object-cover"
+                src={displayPhoto}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-sm text-gray-500">
+                ?
+              </div>
+            )}
+          </a>
         </div>
       </div>
     </header>
