@@ -9,7 +9,6 @@ import Profile from "./pages/User/Profile";
 import BusinessProfile from "./pages/Business/BusinessProfile";
 import BusinessHome from "./pages/Business/BusinessHome";
 
-
 export default function AppRouter() {
   return (
     <Routes>
