@@ -60,7 +60,6 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState<LoginError>(null);
-  const [loggedUser, setLoggedUser] = useState<StoredUser | null>(null);
 
   const clearError = () => setLoginError(null);
 
@@ -104,71 +103,6 @@ export default function Login() {
     );
     window.location.href = matched.accountType === "business" ? "/BusinessHome" : "/home";
   };
-
-  // ── Pantalla de éxito ──────────────────────────────────────────────────────
-  if (loggedUser) {
-    return (
-      <div className="bg-surface font-body text-on-surface min-h-screen flex flex-col">
-        <HeaderClose />
-        <main className="flex-grow flex items-center justify-center px-6">
-          <div className="bg-white rounded-2xl shadow-[0_20px_40px_-10px_rgba(47,47,46,0.08)] border border-[#afadac]/10 p-10 max-w-md w-full text-center space-y-6">
-            <div className="w-20 h-20 rounded-full signature-gradient flex items-center justify-center mx-auto shadow-lg shadow-primary/25">
-              <span className="material-symbols-outlined text-white text-4xl">
-                check_circle
-              </span>
-            </div>
-            <div className="space-y-2">
-              <h2 className="font-headline text-3xl font-extrabold text-on-surface">
-                ¡Bienvenido, {loggedUser.name.split(" ")[0]}!
-              </h2>
-              <p className="text-on-surface-variant">
-                Has iniciado sesión correctamente.
-              </p>
-            </div>
-            <div className="bg-[#f3f0ef] rounded-xl p-4 text-left space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-on-surface-variant font-semibold">
-                  Nombre
-                </span>
-                <span className="font-bold">{loggedUser.name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-on-surface-variant font-semibold">
-                  Correo
-                </span>
-                <span className="font-bold">{loggedUser.email}</span>
-              </div>
-              <div className="flex justify-between items-center pt-1 border-t border-[#e4e2e1]">
-                <span className="text-on-surface-variant font-semibold">
-                  Tipo de cuenta
-                </span>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#fff0eb] text-primary">
-                  <span
-                    className="material-symbols-outlined"
-                    style={{ fontSize: 13 }}
-                  >
-                    {loggedUser.accountType === "business"
-                      ? "storefront"
-                      : "person"}
-                  </span>
-                  {loggedUser.accountType === "business" ? "Empresa" : "Usuario"}
-                </span>
-              </div>
-            </div>
-            <a
-              href="/"
-              className="block w-full signature-gradient text-white font-headline font-bold py-4 rounded-full hover:opacity-90 active:scale-95 transition-all shadow-lg shadow-primary/20"
-            >
-              Ir al inicio
-            </a>
-          </div>
-        </main>
-        <footer className="w-full py-8 text-center text-xs font-label text-outline uppercase tracking-[0.2em]">
-          © 2026 Zylo. Todos los derechos reservados.
-        </footer>
-      </div>
-    );
-  }
 
   // ── Formulario ─────────────────────────────────────────────────────────────
   return (
@@ -334,15 +268,13 @@ export default function Login() {
                 Entrar en Zylo
               </button>
 
-              {/* Divisor */}
-              <div className="relative flex items-center justify-center py-2">
+              {/* <div className="relative flex items-center justify-center py-2">
                 <div className="w-full h-px bg-[#e4e2e1]" />
                 <span className="absolute bg-[#ffffff] px-4 text-xs font-bold text-[#afadac] uppercase tracking-widest">
                   o continuar con
                 </span>
               </div>
 
-              {/* Redes sociales */}
               <div className="grid grid-cols-2 gap-4">
                 <button className="flex items-center justify-center gap-3 bg-[#f3f0ef] hover:bg-[#e4e2e1] transition-all py-4 rounded-full font-label font-semibold text-on-surface">
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -357,7 +289,7 @@ export default function Login() {
                   <img src="imgs/apple-logo.svg" alt="Apple" className="w-5 h-5 object-contain" />
                   Apple
                 </button>
-              </div>
+              </div> */}
 
               {/* Enlace de registro */}
               <div className="text-center">
