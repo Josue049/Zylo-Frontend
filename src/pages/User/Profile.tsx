@@ -13,12 +13,12 @@ interface StoredUser {
   location?: string
 }
 
-interface TogglePref {
-  icon: string
-  label: string
-  key: string
-  enabled: boolean
-}
+// interface TogglePref {
+//   icon: string
+//   label: string
+//   key: string
+//   enabled: boolean
+// }
 
 /* ── Storage helpers ── */
 const USERS_KEY = 'zylo_users'
@@ -69,10 +69,10 @@ export default function UserProfile() {
   const [saveMsg, setSaveMsg] = useState<'saved' | 'error' | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [prefs, setPrefs] = useState<TogglePref[]>([
-    { icon: 'notifications_active', label: 'Notificaciones push', key: 'notif', enabled: true },
-    { icon: 'dark_mode', label: 'Modo oscuro', key: 'dark', enabled: false },
-  ])
+  // const [prefs, setPrefs] = useState<TogglePref[]>([
+  //   { icon: 'notifications_active', label: 'Notificaciones push', key: 'notif', enabled: true },
+  //   { icon: 'dark_mode', label: 'Modo oscuro', key: 'dark', enabled: false },
+  // ])
 
   // Load user from localStorage on mount
   useEffect(() => {
@@ -87,8 +87,8 @@ export default function UserProfile() {
     }
   }, [])
 
-  const togglePref = (idx: number) =>
-    setPrefs(prev => prev.map((p, i) => (i === idx ? { ...p, enabled: !p.enabled } : p)))
+  // const togglePref = (idx: number) =>
+  //   setPrefs(prev => prev.map((p, i) => (i === idx ? { ...p, enabled: !p.enabled } : p)))
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

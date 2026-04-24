@@ -66,13 +66,13 @@ export default function HeaderBusiness() {
       <div className="flex items-center gap-4">
         <div className="hidden md:flex gap-6 items-center mr-4">
           <span className="text-primary font-semibold cursor-pointer">
-            Explore
+            Explorar
           </span>
           <span className="text-[#2f2f2e] hover:opacity-80 transition-opacity cursor-pointer">
-            Bookings
+            Reservas
           </span>
           <span className="text-[#2f2f2e] hover:opacity-80 transition-opacity cursor-pointer">
-            Saved
+            Favoritos
           </span>
         </div>
 
