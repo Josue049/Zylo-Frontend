@@ -1,4 +1,4 @@
-﻿import { useMemo, useState, useEffect } from "react";
+﻿import { useMemo, useState } from "react";
 import HeaderUser from "../../components/user/HeaderUser";
 
 interface Appointment {
@@ -19,7 +19,7 @@ const STORAGE_KEY = "zylo_appointments";
 
 function loadAppointments(): Appointment[] {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]") as Appointment[];
   } catch {
     return [];
   }
@@ -76,15 +76,11 @@ function formatMinutesToTime(value: number) {
 
 export default function Reservations() {
   const today = new Date();
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>(() => loadAppointments());
   const [currentMonth, setCurrentMonth] = useState(
     new Date(today.getFullYear(), today.getMonth(), 1),
   );
   const [selectedDate, setSelectedDate] = useState(formatDateKey(today));
-
-  useEffect(() => {
-    setAppointments(loadAppointments());
-  }, []);
 
   const appointmentsByDate = useMemo(() => {
     return appointments.reduce<Record<string, Appointment[]>>((acc, item) => {
@@ -155,7 +151,7 @@ export default function Reservations() {
   const cancelAppointment = (id: number) => {
     const updated = appointments.map((item) =>
       item.id === id ? { ...item, status: "cancelled" as const } : item,
-    );
+    ) as Appointment[];
     setAppointments(updated);
     saveAppointments(updated);
   };
@@ -171,7 +167,7 @@ export default function Reservations() {
         date: formatDateKey(dateObj),
         time: formatMinutesToTime(nextMinutes),
       };
-    });
+    }) as Appointment[];
     setAppointments(updated);
     saveAppointments(updated);
   };

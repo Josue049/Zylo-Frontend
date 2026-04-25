@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 
 /* ── Types ── */
@@ -60,7 +60,7 @@ function getCurrentUser(): StoredUser | null {
 
 function getAppointments(): Appointment[] {
   try {
-    return JSON.parse(localStorage.getItem(APPOINTMENTS_KEY) || "[]");
+    return JSON.parse(localStorage.getItem(APPOINTMENTS_KEY) || "[]") as Appointment[];
   } catch {
     return [];
   }
@@ -77,17 +77,11 @@ function formatDate(dateTime: string) {
 
 /* ── Component ── */
 export default function HeaderUser() {
-  const [user, setUser] = useState<StoredUser | null>(null);
+  const [user] = useState<StoredUser | null>(() => getCurrentUser());
   const [showReservationsModal, setShowReservationsModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
   const [calendarMonth, setCalendarMonth] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-
-  useEffect(() => {
-    const u = getCurrentUser();
-    setUser(u);
-    setAppointments(getAppointments());
-  }, []);
+  const [appointments, setAppointments] = useState<Appointment[]>(() => getAppointments());
 
   const displayPhoto = user?.photo ?? null;
 
@@ -124,7 +118,7 @@ export default function HeaderUser() {
   const cancelAppointment = (id: number) => {
     const updated = appointments.map((appt) =>
       appt.id === id ? { ...appt, status: "cancelled" } : appt,
-    );
+    ) as Appointment[];
     setAppointments(updated);
     localStorage.setItem(APPOINTMENTS_KEY, JSON.stringify(updated));
   };
@@ -148,7 +142,7 @@ export default function HeaderUser() {
         date: nextDate.toISOString().slice(0, 10),
         time: nextDate.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }),
       };
-    });
+    }) as Appointment[];
     setAppointments(updated);
     localStorage.setItem(APPOINTMENTS_KEY, JSON.stringify(updated));
   };
