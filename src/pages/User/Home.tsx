@@ -192,6 +192,6 @@ function BusinessCard({ business }: { business: Business }) {
           </button>
         </div>
       </div>
-    </div>
+    </a>
   );
 }
