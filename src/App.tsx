@@ -8,7 +8,7 @@ import Home from "./pages/User/Home";
 import Profile from "./pages/User/Profile";
 import BusinessProfile from "./pages/Business/BusinessProfile";
 import BusinessHome from "./pages/Business/BusinessHome";
-
+import Favorites from "./pages/User/Favorites";
 
 export default function AppRouter() {
   return (
@@ -18,8 +18,9 @@ export default function AppRouter() {
       <Route path="/register" element={<Register />} />
       <Route path="/home" element={<Home />} />
       <Route path="/profile" element={<Profile />} />
-      <Route path="/businessProfile" element={<BusinessProfile />} />
+      <Route path="/businessProfile/:id" element={<BusinessProfile />} />
       <Route path="/businessHome" element={<BusinessHome />} />
+      <Route path="/favorites" element={<Favorites />} />
     </Routes>
   );
 }
