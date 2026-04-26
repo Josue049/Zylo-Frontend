@@ -15,9 +15,9 @@ export default function HeaderBusiness() {
             href="#"
             className="text-primary font-semibold hover:opacity-80 transition-opacity"
           >
-            Dashboard
+            Panel
           </a>
-          {["Schedule", "Clients"].map((l) => (
+          {["Calendario", "Clientes"].map((l) => (
             <a
               key={l}
               href="#"
