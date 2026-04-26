@@ -10,6 +10,7 @@ import BusinessProfile from "./pages/Business/BusinessProfile";
 import BusinessHome from "./pages/Business/BusinessHome";
 import Messages from "./pages/Messages";
 import Favorites from "./pages/User/Favorites";
+import BusinessMessages from "./pages/Business/BusinessMessages";
 
 export default function AppRouter() {
   return (
@@ -23,6 +24,7 @@ export default function AppRouter() {
       <Route path="/businessHome" element={<BusinessHome />} />
       <Route path="/messages" element={<Messages />} />
       <Route path="/favorites" element={<Favorites />} />
+      <Route path="/business-messages" element={<BusinessMessages />} />
     </Routes>
   );
 }
