@@ -126,7 +126,6 @@ export default function HeaderUser() {
   const changeAppointmentDateTime = (id: number) => {
     const updated = appointments.map((appt) => {
       if (appt.id !== id || appt.status === "cancelled") return appt;
-      // Parse time like "02:00 PM" to Date object
       const timeStr = appt.time.replace(" ", "").toLowerCase();
       const isPM = timeStr.includes("pm");
       const [hourStr, minuteStr] = timeStr.replace("am", "").replace("pm", "").split(":");

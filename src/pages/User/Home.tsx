@@ -1,113 +1,49 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import HeaderUser from "../../components/user/HeaderUser";
+import { useState } from 'react'
+import HeaderUser from '../../components/user/HeaderUser'
+import { businesses, type Business } from '../../data/businesses'
 
-/* ── Tipos ── */
-interface Category {
-  icon: string;
-  label: string;
-}
-
-interface Business {
-  id: number;
-  name: string;
-  image: string;
-  imageAlt: string;
-  category: string;
-  distance: string;
-  rating: number;
-  availability: string;
-  available: boolean;
-  bookingTitle: string;
-  duration: string;
-  price: number;
-}
-
-/* ── Datos ── */
 const categories: Category[] = [
-  { icon: "content_cut", label: "Belleza" },
-  { icon: "medical_services", label: "Salud" },
-  { icon: "fitness_center", label: "Fitness" },
-  { icon: "pets", label: "Mascotas" },
-  { icon: "spa", label: "Bienestar" },
-  { icon: "more_horiz", label: "Más" },
-];
-
-const businesses: Business[] = [
-  {
-    id: 1,
-    name: "The Serene Sanctuary",
-    image:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuCp1LOOTi8ivMkLiI_svhIzR5CQ4mkK43VkZcn6m-EUPKfanibK_8vkqsftaFOOT7Lb5LCvwHzXs9AXZuB9cfAk-oorrB_D2KR3SiNebXGXphBXvNOzlcKi_wgLUA5hXF1kbOdUWpvX3uquTYXHkOTRig2LPlQgizCeqs_6gU0r33OCvJstvDuafSjDHKBTmfnoRFFRPQdM5tChWiWGhRoOEgwUOUiMBXZ6mDsB3RjjKIL2MzPXEuJqU_Tv5d0ufFq0PNDZv8E-mRZ2",
-    imageAlt: "Interior minimalista de spa moderno",
-    category: "Bienestar y Spa",
-    distance: "0.8 km de distancia",
-    rating: 4.9,
-    availability: "Hoy a las 2:30 PM",
-    available: true,
-    bookingTitle: "Masaje de tejido profundo",
-    duration: "60 min",
-    price: 60,
-  },
-  {
-    id: 2,
-    name: "Iron & Soul Gym",
-    image:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuBnal5KhG5uW8bgPl3px5lenuneSs7RE65B3kRlHXFHdbpHYwpuXzwkR6TTWSGHw3dr-gNumPOAyZnFrIAw1_T8T_eOTNf-Ci-qX0Ix-FgOeHeZLcbJ_xWVloet50N1DBOGkzNVBNXzRXUFvP5r-fIYP2wHUViz8gmD7tUaJ7MbYtGjrDd9uYN9bHDPt_Ibls0l20wZW73awTnvh9MoUB2U-9Cdzj85jq09kvMhQpRgnnWJMZa24x2cC0UnglMr2JvIoCnHzzc0HMEG",
-    imageAlt: "Estudio fitness moderno",
-    category: "Fitness y Entrenamiento Personal",
-    distance: "1.2 km de distancia",
-    rating: 4.7,
-    availability: "Próximo: mañana 9:00 AM",
-    available: false,
-    bookingTitle: "Sesión de entrenamiento personal",
-    duration: "50 min",
-    price: 45,
-  },
-  {
-    id: 3,
-    name: "Paws & Polish Salon",
-    image:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuAh7Nbfg5aBnqlErvhl-MGv8YBZCXgavBp5MSpOPrJism_dEkch8yrIgyfsfpuWNlmX82Dz_d0x_ko63qg73m2Kv4CSypq3s14kUJU4r5RKq1xAD8hrjF1KzmbBMpzKfNbqvOCsJtgUYlv48KDES8ORxabD8ZgT5WQcPegq-XCOiVAi24PEu44h9Y3bSJplcANQzePZEzgL2BN2nTM312laYLN8Eq87gqzblSpw1yYdrIzDXT6Cprrm9cRAWwc3jZOjxeibrWGWBgwF",
-    imageAlt: "Salón de grooming para mascotas",
-    category: "Spa y Grooming para Mascotas",
-    distance: "2.5 km de distancia",
-    rating: 4.9,
-    availability: "Hoy a las 5:00 PM",
-    available: true,
-    bookingTitle: "Sesión completa de grooming",
-    duration: "75 min",
-    price: 55,
-  },
-];
+  { icon: 'content_cut', label: 'Belleza' },
+  { icon: 'medical_services', label: 'Salud' },
+  { icon: 'fitness_center', label: 'Fitness' },
+  { icon: 'pets', label: 'Mascotas' },
+  { icon: 'spa', label: 'Bienestar' },
+  { icon: 'more_horiz', label: 'Más' },
+]
 
 const navItems = [
-  { icon: "search", label: "Explorar", active: true },
-  { icon: "calendar_today", label: "Reservas", active: false },
-  { icon: "favorite", label: "Guardados", active: false },
-  { icon: "chat_bubble", label: "Mensajes", active: false },
-  { icon: "person_outline", label: "Perfil", active: false },
-];
+  { icon: 'search', label: 'Explorar' },
+  { icon: 'calendar_today', label: 'Reservas' },
+  { icon: 'favorite', label: 'Guardados' },
+  { icon: 'chat_bubble', label: 'Mensajes' },
+  { icon: 'person_outline', label: 'Perfil' },
+]
 
-export default function Home() {
-  const [activeNav, setActiveNav] = useState(0);
-  const [search, setSearch] = useState("");
-  const navigate = useNavigate();
+export default function Explore() {
+  const [activeNav, setActiveNav] = useState(0)
+  const [search, setSearch] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('')
 
-  const goToBooking = (business: Business) => {
-    navigate("/businessProfile", {
-      state: { business },
-    });
-  };
+  const filteredBusinesses = businesses.filter((biz) => {
+    const searchText = search.toLowerCase()
+    const matchesSearch =
+      biz.name.toLowerCase().includes(searchText) ||
+      biz.category.toLowerCase().includes(searchText)
+    const matchesCategory =
+      selectedCategory === '' ||
+      biz.category.toLowerCase().includes(selectedCategory.toLowerCase())
+    return matchesSearch && matchesCategory
+  })
 
   return (
     <div className="bg-surface text-on-surface min-h-screen font-body">
       <HeaderUser />
 
       <main className="pb-28">
+        {/* Búsqueda & Hero */}
         <section className="px-6 pt-8 pb-6">
           <div className="max-w-4xl mx-auto">
-            <h2 className="font-headline text-4xl md:text-5xl font-extrabold tracking-tight text-on-surface mb-8 leading-tight">
+            <h2 className="text-center font-headline text-4xl md:text-5xl font-extrabold tracking-tight text-on-surface mb-8 leading-tight">
               Encuentra tu próximo <span className="text-primary">ritual.</span>
             </h2>
 
@@ -121,7 +57,7 @@ export default function Home() {
               <input
                 type="text"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={e => setSearch(e.target.value)}
                 placeholder="Busca belleza, fitness, bienestar..."
                 className="w-full bg-[#f3f0ef] border-none rounded-xl py-5 pl-14 pr-32 text-on-surface focus:ring-2 focus:ring-[#ff785133] transition-all placeholder:text-outline/70 outline-none"
               />
@@ -133,19 +69,23 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Categorías */}
         <section className="px-6 mb-10 overflow-x-auto hide-scrollbar">
-          <div className="flex gap-4 min-w-max">
+          <div className="flex justify-center gap-4 w-full min-w-max">
             {categories.map((cat) => (
               <div
                 key={cat.label}
-                className="flex flex-col items-center gap-2 group cursor-pointer"
+                onClick={() => setSelectedCategory(selectedCategory === cat.label ? '' : cat.label)}
+                className="flex flex-col items-center justify-center text-center gap-2 group cursor-pointer w-20"
               >
-                <div className="w-16 h-16 rounded-2xl bg-[#ffffff] shadow-sm flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300">
-                  <span className="material-symbols-outlined text-3xl">
-                    {cat.icon}
-                  </span>
+                <div className={`w-16 h-16 rounded-2xl shadow-sm flex items-center justify-center transition-all duration-300 ${
+                  selectedCategory === cat.label
+                    ? 'bg-primary text-white'
+                    : 'bg-[#ffffff] text-primary group-hover:bg-primary group-hover:text-white'
+                }`}>
+                  <span className="material-symbols-outlined text-3xl">{cat.icon}</span>
                 </div>
-                <span className="text-xs font-semibold font-headline uppercase tracking-wider text-on-surface-variant">
+                <span className="text-xs font-semibold font-headline uppercase tracking-wider text-on-surface-variant text-center w-full">
                   {cat.label}
                 </span>
               </div>
@@ -153,54 +93,36 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="px-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <div className="lg:col-span-4 h-[300px] lg:h-auto min-h-[400px] relative rounded-xl overflow-hidden shadow-sm bg-[#f3f0ef]">
-            <div
-              className="absolute inset-0 bg-cover bg-center opacity-90"
-              style={{
-                backgroundImage: `url("https://lh3.googleusercontent.com/aida-public/AB6AXuCcNgxKXxEbEIcT5QyDtnZDmQthMuEvFp2QLPjRyogcLB7EoOwNzqQTq2FCinGudYtlZwJcFmXNz3ot2fME3xYYzaCtixW4uELrpQKiPiAuoF7eItm5_6hdECTUqH_JYome-SKUDWO91TylNlqTqxQ1JagWICcunhMi2IG1UT_YzRZJhLLQuRVu_3P7z4-uwZspQp-iDOV90Rc4yXBG70cz0NNLfoiRuoQuOd2uFRHXvVLgnY5UU0Ec3jxFMl4PQJ90H-v7QIrWZUSz")`,
-              }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#f3f0ef]/40 pointer-events-none" />
-
-            <MapPin top="33%" left="25%" color="bg-primary" icon="spa" size="large" />
-            <MapPin top="50%" left="66%" color="bg-[#833e9a]" icon="fitness_center" size="small" />
-            <MapPin top="75%" left="50%" color="bg-[#a03739]" icon="pets" size="small" />
-
-            <div className="absolute bottom-6 left-6 right-6 p-4 bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-white/20">
-              <p className="text-xs font-bold text-primary font-headline uppercase mb-1">
-                Negocios cercanos
-              </p>
-              <p className="text-sm text-on-surface font-medium">
-                8 locales encontrados dentro de 2 km
-              </p>
-            </div>
-          </div>
-
-          <div className="lg:col-span-8 flex flex-col gap-6">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="font-headline text-2xl font-bold">
-                Lugares destacados
-              </h3>
-              <button className="text-primary font-semibold text-sm flex items-center gap-1 hover:opacity-80 transition-opacity">
-                Ver todo
-                <span className="material-symbols-outlined text-sm">
-                  arrow_forward
-                </span>
+        {/* Catálogo */}
+        <section className="px-6">
+          <div className="w-full">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-headline text-2xl font-bold">Locales Destacados</h3>
+              <button
+                onClick={() => { setSearch(''); setSelectedCategory('') }}
+                className="text-primary font-semibold text-sm flex items-center gap-1 hover:opacity-80 transition-opacity"
+              >
+                Ver todos
+                <span className="material-symbols-outlined text-sm">arrow_forward</span>
               </button>
             </div>
 
-            {businesses.map((biz) => (
-              <BusinessCard
-                key={biz.id}
-                business={biz}
-                onClick={() => goToBooking(biz)}
-              />
-            ))}
+            {filteredBusinesses.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {filteredBusinesses.map(biz => (
+                  <BusinessCard key={biz.id} business={biz} />
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl p-8 text-center text-on-surface-variant">
+                No se encontraron negocios.
+              </div>
+            )}
           </div>
         </section>
       </main>
 
+      {/* Navegación inferior */}
       <nav className="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-3 bg-white/80 backdrop-blur-xl rounded-t-[3rem] shadow-[0_-4px_40px_rgba(47,47,46,0.06)] md:hidden">
         {navItems.map((item, i) => (
           <button
@@ -223,52 +145,13 @@ export default function Home() {
   );
 }
 
-function MapPin({
-  top,
-  left,
-  color,
-  icon,
-  size,
-}: {
-  top: string;
-  left: string;
-  color: string;
-  icon: string;
-  size: "large" | "small";
-}) {
-  const sz = size === "large" ? "w-10 h-10" : "w-8 h-8";
-
+function BusinessCard({ business }: { business: Business }) {
   return (
-    <div
-      className={`absolute ${sz} ${color} rounded-full border-4 border-white shadow-lg flex items-center justify-center text-white`}
-      style={{ top, left }}
+    <a
+      href={`/businessProfile/${business.id}`}
+      className="bg-[#ffffff] rounded-xl p-4 flex flex-col gap-5 hover:shadow-xl transition-all duration-500 group cursor-pointer border border-transparent hover:border-[#ff785133]"
     >
-      <span
-        className="material-symbols-outlined"
-        style={{
-          fontSize: size === "large" ? 16 : 13,
-          fontVariationSettings: '"FILL" 1',
-        }}
-      >
-        {icon}
-      </span>
-    </div>
-  );
-}
-
-function BusinessCard({
-  business,
-  onClick,
-}: {
-  business: Business;
-  onClick: () => void;
-}) {
-  return (
-    <div
-      onClick={onClick}
-      className="bg-[#ffffff] rounded-xl p-4 flex flex-col md:flex-row gap-5 hover:shadow-xl transition-all duration-500 group cursor-pointer border border-transparent hover:border-[#ff785133]"
-    >
-      <div className="w-full md:w-48 h-40 rounded-lg overflow-hidden shrink-0">
+      <div className="w-full h-40 rounded-lg overflow-hidden shrink-0">
         <img
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
           src={business.image}
@@ -283,12 +166,7 @@ function BusinessCard({
               {business.name}
             </h4>
             <div className="flex items-center gap-1 bg-[#f3f0ef] px-2 py-1 rounded-full shrink-0 ml-2">
-              <span
-                className="material-symbols-outlined text-primary text-sm"
-                style={{ fontSize: 14, fontVariationSettings: '"FILL" 1' }}
-              >
-                star
-              </span>
+              <span className="material-symbols-outlined text-primary text-sm" style={{ fontSize: 14, fontVariationSettings: '"FILL" 1' }}>star</span>
               <span className="text-xs font-bold">{business.rating}</span>
             </div>
           </div>
@@ -302,27 +180,14 @@ function BusinessCard({
 
         <div className="flex items-center justify-between mt-auto">
           <div className="flex items-center gap-2">
-            {business.available && (
-              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            )}
-            <span
-              className={`text-xs font-bold px-3 py-1 rounded-full ${
-                business.available
-                  ? "bg-[#ff785133] text-primary"
-                  : "bg-[#e4e2e1] text-on-surface-variant"
-              }`}
-            >
+            {business.available && <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />}
+            <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+              business.available ? 'bg-[#ff785133] text-primary' : 'bg-[#e4e2e1] text-on-surface-variant'
+            }`}>
               {business.availability}
             </span>
           </div>
-
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onClick();
-            }}
-            className="bg-[#2f2f2e] text-[#f9f6f5] px-5 py-2 rounded-full text-sm font-bold group-hover:bg-primary transition-colors"
-          >
+          <button className="bg-[#2f2f2e] text-[#f9f6f5] px-5 py-2 rounded-full text-sm font-bold group-hover:bg-primary transition-colors">
             Reservar
           </button>
         </div>

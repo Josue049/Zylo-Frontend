@@ -2,7 +2,6 @@ import { NavLink, useNavigate } from "react-router-dom";
 
 export default function HeaderBusiness() {
   const navigate = useNavigate();
-
   const navItems = [
     { label: "Dashboard", to: "/businessHome" },
     { label: "Reservas", to: "/reservations" },
@@ -19,7 +18,6 @@ export default function HeaderBusiness() {
           Zylo
         </span>
       </button>
-
       <div className="flex items-center gap-4">
         <nav className="hidden md:flex items-center gap-8 mr-8">
           {navItems.map((item) => (
@@ -36,7 +34,6 @@ export default function HeaderBusiness() {
             </NavLink>
           ))}
         </nav>
-
         <button
           onClick={() => navigate("/profile")}
           className="w-10 h-10 rounded-full bg-[#e4e2e1] overflow-hidden"
