@@ -45,6 +45,7 @@ function getCurrentUser(): StoredUser | null {
 /* ── Component ── */
 export default function HeaderBusiness() {
   const [user, setUser] = useState<StoredUser | null>(null);
+  const currentPath = window.location.pathname;
 
   useEffect(() => {
     const u = getCurrentUser();
@@ -52,6 +53,14 @@ export default function HeaderBusiness() {
   }, []);
 
   const displayPhoto = user?.photo ?? null;
+
+  // ✅ navLinks ahora incluye "Mensajes" de feature/messages
+  const navLinks = [
+    { label: "Explorar", href: "/home" },
+    { label: "Reservas", href: "/bookings" },
+    { label: "Favoritos", href: "/favorites" },
+    { label: "Mensajes", href: "/messages" },
+  ];
 
   return (
     <header className="bg-[#f9f6f5] flex justify-between items-center px-6 py-4 w-full sticky top-0 z-50 shadow-[0_1px_0_rgba(47,47,46,0.06)]">
@@ -62,23 +71,23 @@ export default function HeaderBusiness() {
           </h1>
         </a>
       </div>
-
       <div className="flex items-center gap-4">
         <div className="hidden md:flex gap-6 items-center mr-4">
-          <span className="text-primary font-semibold cursor-pointer">
-            Explorar
-          </span>
-          <span className="text-[#2f2f2e] hover:opacity-80 transition-opacity cursor-pointer">
-            Reservas
-          </span>
-          <span className="text-[#2f2f2e] hover:opacity-80 transition-opacity cursor-pointer">
-            Favoritos
-          </span>
-          <a href="/messages" className="text-[#2f2f2e] hover:opacity-80 transition-opacity cursor-pointer">
-            Mensajes
-          </a>
+          {/* ✅ Renderizado dinámico de developer + link Mensajes de feature/messages */}
+          {navLinks.map((link) => (
+            
+              key={link.label}
+              href={link.href}
+              className={`transition-opacity cursor-pointer font-semibold ${
+                currentPath === link.href
+                  ? "text-primary"
+                  : "text-[#2f2f2e] hover:opacity-80"
+              }`}
+            >
+              {link.label}
+            </a>
+          ))}
         </div>
-
         <div className="w-10 h-10 rounded-full bg-[#e4e2e1] overflow-hidden cursor-pointer active:scale-95 transition-transform">
           <a href="/profile">
             {displayPhoto ? (
