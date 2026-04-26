@@ -8,6 +8,7 @@ import Home from "./pages/User/Home";
 import Profile from "./pages/User/Profile";
 import BusinessProfile from "./pages/Business/BusinessProfile";
 import BusinessHome from "./pages/Business/BusinessHome";
+import Messages from "./pages/Messages";
 
 
 export default function AppRouter() {
@@ -20,6 +21,7 @@ export default function AppRouter() {
       <Route path="/profile" element={<Profile />} />
       <Route path="/businessProfile" element={<BusinessProfile />} />
       <Route path="/businessHome" element={<BusinessHome />} />
+      <Route path="/messages" element={<Messages />} />
     </Routes>
   );
 }

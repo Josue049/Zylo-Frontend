@@ -1,5 +1,10 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import HeaderBusiness from '../../components/user/HeaderUser';
+import {
+  getSession,
+  getOrCreateConversation,
+} from '../../data/messages';
 
 // --- Interfaces para Tipado ---
 interface Service {
@@ -18,7 +23,35 @@ interface TeamMember {
   image: string;
 }
 
+// ── Datos del negocio (simulados, eventualmente vendrán del backend) ──
+const BUSINESS_ID = "lumina-creative-hub";
+const BUSINESS_NAME = "Lumina Creative Hub";
+const BUSINESS_CATEGORY = "Coworking & Creatividad";
+const BUSINESS_PHOTO =
+  "https://lh3.googleusercontent.com/aida-public/AB6AXuCsYGkdP2DgPmXzAAutYHzmBM3zW36p_YFj4Ltx6hXqdqb1Zr2T2lM_lsz5GBQrjfqgh9fSP7nDb2FySNlRpELlwGpDNiig28B7Uz8ArI690Ms5NB30whzdwFAi3cNCgq0q_5hQT_EsI2a45CmNAAPTa9AKHPP_mynQTyx3lYU5IZJtHxhVPzpBbB_3BJBa-mpWXF1ZZeUTroFhR8rO_vdo7aS3MA_T9lZo3X1okj5uax2Jwh2jffmoKmv5_MfntAfTgVsIpBAmnoV8";
+
 const App: React.FC = () => {
+  const navigate = useNavigate();
+
+  // ── Handler del botón Message ──
+  const handleMessage = () => {
+    const session = getSession();
+    if (!session) {
+      navigate('/login');
+      return;
+    }
+    const conv = getOrCreateConversation(
+      session.email,
+      session.name,
+      undefined,
+      BUSINESS_ID,
+      BUSINESS_NAME,
+      BUSINESS_CATEGORY,
+      BUSINESS_PHOTO
+    );
+    navigate(`/messages?conv=${conv.id}`);
+  };
+
   // Datos simulados
   const services: Service[] = [
     {
@@ -87,7 +120,7 @@ const App: React.FC = () => {
             </div>
           </div>
           <div className="flex gap-4">
-            <button className="bg-[#dfdcdc] text-[#2f2f2e] px-8 py-4 rounded-full font-bold active:scale-95 transition-all">Message</button>
+            <button onClick={handleMessage} className="bg-[#dfdcdc] text-[#2f2f2e] px-8 py-4 rounded-full font-bold active:scale-95 transition-all">Message</button>
             <button className="bg-gradient-to-br from-[#ab2d00] to-[#ff7851] text-white px-8 py-4 rounded-full font-bold shadow-lg shadow-[#ab2d00]/20 active:scale-95 transition-all">
               Book Now
             </button>

@@ -74,6 +74,9 @@ export default function HeaderBusiness() {
           <span className="text-[#2f2f2e] hover:opacity-80 transition-opacity cursor-pointer">
             Favoritos
           </span>
+          <a href="/messages" className="text-[#2f2f2e] hover:opacity-80 transition-opacity cursor-pointer">
+            Mensajes
+          </a>
         </div>
 
         <div className="w-10 h-10 rounded-full bg-[#e4e2e1] overflow-hidden cursor-pointer active:scale-95 transition-transform">
