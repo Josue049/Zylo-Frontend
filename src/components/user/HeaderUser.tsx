@@ -75,7 +75,7 @@ export default function HeaderBusiness() {
         <div className="hidden md:flex gap-6 items-center mr-4">
           {/* ✅ Renderizado dinámico de developer + link Mensajes de feature/messages */}
           {navLinks.map((link) => (
-            
+            <a
               key={link.label}
               href={link.href}
               className={`transition-opacity cursor-pointer font-semibold ${
