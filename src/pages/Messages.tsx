@@ -317,7 +317,6 @@ export default function MessagesPage() {
 function ConversationItem({
   conv,
   isActive,
-  currentUserEmail,
   onClick,
 }: {
   conv: Conversation;
