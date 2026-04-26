@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import HeaderUser from '../../components/user/HeaderUser'
 
 /* ── Types ── */
@@ -30,7 +30,7 @@ function getSession(): { email: string; name: string } | null {
 }
 
 function getAllUsers(): StoredUser[] {
-  try { return JSON.parse(localStorage.getItem(USERS_KEY) || '[]') }
+  try { return JSON.parse(localStorage.getItem(USERS_KEY) || '[]') as StoredUser[] }
   catch { return [] }
 }
 
@@ -63,29 +63,21 @@ const footerLinks = ['Privacidad', 'Términos', 'Soporte', 'Empleo']
 
 /* ── Main Component ── */
 export default function UserProfile() {
-  const [user, setUser] = useState<StoredUser | null>(null)
+  const initialUser = getCurrentUser();
+  const [user, setUser] = useState<StoredUser | null>(initialUser)
   const [editing, setEditing] = useState(false)
-  const [editForm, setEditForm] = useState({ name: '', phone: '', location: '' })
+  const [editForm, setEditForm] = useState(() => {
+    if (initialUser) {
+      return {
+        name: initialUser.name,
+        phone: initialUser.phone,
+        location: initialUser.location ?? '',
+      };
+    }
+    return { name: '', phone: '', location: '' };
+  })
   const [saveMsg, setSaveMsg] = useState<'saved' | 'error' | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  // const [prefs, setPrefs] = useState<TogglePref[]>([
-  //   { icon: 'notifications_active', label: 'Notificaciones push', key: 'notif', enabled: true },
-  //   { icon: 'dark_mode', label: 'Modo oscuro', key: 'dark', enabled: false },
-  // ])
-
-  // Load user from localStorage on mount
-  useEffect(() => {
-    const u = getCurrentUser()
-    setUser(u)
-    if (u) {
-      setEditForm({
-        name: u.name,
-        phone: u.phone,
-        location: u.location ?? '',
-      })
-    }
-  }, [])
 
   // const togglePref = (idx: number) =>
   //   setPrefs(prev => prev.map((p, i) => (i === idx ? { ...p, enabled: !p.enabled } : p)))

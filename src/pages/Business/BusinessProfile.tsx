@@ -2,10 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import HeaderBusiness from '../../components/user/HeaderUser';
 import { businesses } from '../../data/businesses';
-import {
-  getSession,
-  getOrCreateConversation,
-} from '../../data/messages';
+import { getSession, getOrCreateConversation } from '../../data/messages';
 
 /* ── Favoritos en localStorage ── */
 interface FavoriteBusiness {
@@ -41,7 +38,6 @@ export default function BusinessProfile() {
     setIsFavorite(favs.some(f => f.id === String(business.id)));
   }, [business]);
 
-  // ✅ Handler de mensajes de feature/messages, adaptado al negocio dinámico
   const handleMessage = () => {
     if (!business) return;
     const session = getSession();
@@ -135,7 +131,6 @@ export default function BusinessProfile() {
             </div>
           </div>
 
-          {/* ✅ Tres botones: favorito (developer) + mensaje (feature/messages) + reservar */}
           <div className="flex gap-3">
             <button
               onClick={toggleFavorite}
@@ -156,7 +151,10 @@ export default function BusinessProfile() {
             >
               Mensaje
             </button>
-            <button className="bg-gradient-to-br from-[#ab2d00] to-[#ff7851] text-white px-8 py-4 rounded-full font-bold shadow-lg shadow-[#ab2d00]/20 active:scale-95 transition-all">
+            <button
+              onClick={() => navigate(`/booking/${business.id}`)}
+              className="bg-gradient-to-br from-[#ab2d00] to-[#ff7851] text-white px-8 py-4 rounded-full font-bold shadow-lg shadow-[#ab2d00]/20 active:scale-95 transition-all"
+            >
               Reservar
             </button>
           </div>
@@ -200,8 +198,8 @@ export default function BusinessProfile() {
                     <div className="w-32 h-32 rounded-xl overflow-hidden mb-3 grayscale group-hover:grayscale-0 transition-all duration-300">
                       <img src={member.image} alt={member.name} className="w-full h-full object-cover" />
                     </div>
-                    <h4 className="font-bold text-sm text-center">{member.name}</h4>
-                    <p className="text-[#ab2d00] text-[10px] text-center font-bold uppercase tracking-widest">{member.role}</p>
+                    <p className="text-sm font-bold text-center">{member.name}</p>
+                    <p className="text-xs text-[#5c5b5b] text-center">{member.role}</p>
                   </div>
                 ))}
               </div>
@@ -235,6 +233,7 @@ export default function BusinessProfile() {
               </div>
             </div>
           </aside>
+
         </div>
       </main>
     </div>
