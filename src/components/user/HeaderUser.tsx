@@ -76,21 +76,20 @@ function formatDate(dateTime: string) {
 }
 
 /* ── Component ── */
-export default function HeaderUser() {
+export default function Header() {
   const [user] = useState<StoredUser | null>(() => getCurrentUser());
   const [showReservationsModal, setShowReservationsModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
-  const [calendarMonth, setCalendarMonth] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [calendarMonth, setCalendarMonth] = useState(
+    new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+  );
   const [appointments, setAppointments] = useState<Appointment[]>(() => getAppointments());
 
   const displayPhoto = user?.photo ?? null;
+  const currentPath = window.location.pathname;
 
   const monthLabel = useMemo(
-    () =>
-      calendarMonth.toLocaleDateString("es-ES", {
-        month: "long",
-        year: "numeric",
-      }),
+    () => calendarMonth.toLocaleDateString("es-ES", { month: "long", year: "numeric" }),
     [calendarMonth],
   );
 
@@ -103,21 +102,18 @@ export default function HeaderUser() {
     ).getDate();
     return [
       ...Array(firstDayIndex).fill(null),
-      ...Array.from({ length: daysCount }, (_, index) => index + 1),
+      ...Array.from({ length: daysCount }, (_, i) => i + 1),
     ];
   }, [calendarMonth]);
 
   const appointmentsForSelectedDate = useMemo(
-    () =>
-      appointments.filter(
-        (appt) => appt.date === selectedDate && appt.status === "upcoming",
-      ),
+    () => appointments.filter((a) => a.date === selectedDate && a.status === "upcoming"),
     [appointments, selectedDate],
   );
 
   const cancelAppointment = (id: number) => {
-    const updated = appointments.map((appt) =>
-      appt.id === id ? { ...appt, status: "cancelled" } : appt,
+    const updated = appointments.map((a) =>
+      a.id === id ? { ...a, status: "cancelled" } : a,
     ) as Appointment[];
     setAppointments(updated);
     localStorage.setItem(APPOINTMENTS_KEY, JSON.stringify(updated));
@@ -159,28 +155,37 @@ export default function HeaderUser() {
 
         <div className="flex items-center gap-4">
           <div className="hidden md:flex gap-6 items-center mr-4">
-            <span className="text-primary font-semibold cursor-pointer">
+            <Link
+              to="/home"
+              className={`transition-opacity font-semibold ${
+                currentPath === "/home" ? "text-primary" : "text-[#2f2f2e] hover:opacity-80"
+              }`}
+            >
               Explorar
-            </span>
+            </Link>
+
             <button
               onClick={() => setShowReservationsModal(true)}
               className="text-[#2f2f2e] hover:opacity-80 transition-opacity font-semibold"
             >
               Reservas
             </button>
-            <span className="text-[#2f2f2e] hover:opacity-80 transition-opacity cursor-pointer">
+
+            {/* ← Favoritos navega a /favorites */}
+            <Link
+              to="/favorites"
+              className={`transition-opacity font-semibold ${
+                currentPath === "/favorites" ? "text-primary" : "text-[#2f2f2e] hover:opacity-80"
+              }`}
+            >
               Favoritos
-            </span>
+            </Link>
           </div>
 
           <div className="w-10 h-10 rounded-full bg-[#e4e2e1] overflow-hidden cursor-pointer active:scale-95 transition-transform">
             <Link to="/profile">
               {displayPhoto ? (
-                <img
-                  alt="User Profile"
-                  className="w-full h-full object-cover"
-                  src={displayPhoto}
-                />
+                <img alt="User Profile" className="w-full h-full object-cover" src={displayPhoto} />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-sm text-gray-500">
                   ?
@@ -205,6 +210,7 @@ export default function HeaderUser() {
             </div>
 
             <div className="p-6 grid gap-6 lg:grid-cols-[1.2fr_0.85fr] items-start">
+              {/* Calendario */}
               <section className="rounded-[2rem] border border-[#e4e2e1] bg-[#f9f6f5] p-6 min-w-[340px]">
                 <div className="flex items-center justify-between mb-4">
                   <div>
@@ -218,11 +224,7 @@ export default function HeaderUser() {
                       type="button"
                       onClick={() =>
                         setCalendarMonth(
-                          new Date(
-                            calendarMonth.getFullYear(),
-                            calendarMonth.getMonth() - 1,
-                            1,
-                          ),
+                          new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1),
                         )
                       }
                       className="rounded-full bg-white p-2 text-[#2f2f2e] transition hover:bg-[#f3f0ef]"
@@ -233,11 +235,7 @@ export default function HeaderUser() {
                       type="button"
                       onClick={() =>
                         setCalendarMonth(
-                          new Date(
-                            calendarMonth.getFullYear(),
-                            calendarMonth.getMonth() + 1,
-                            1,
-                          ),
+                          new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1),
                         )
                       }
                       className="rounded-full bg-white p-2 text-[#2f2f2e] transition hover:bg-[#f3f0ef]"
@@ -254,25 +252,20 @@ export default function HeaderUser() {
                   <input
                     type="date"
                     value={selectedDate}
-                    onChange={(event) => setSelectedDate(event.target.value)}
+                    onChange={(e) => setSelectedDate(e.target.value)}
                     className="w-full rounded-xl border border-[#d7d2cf] bg-[#f9f6f5] px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
 
                 <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold uppercase tracking-[0.24em] text-[#7a7877]">
-                  {['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa'].map((day) => (
-                    <div key={day} className="py-2">
-                      {day}
-                    </div>
+                  {["Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sa"].map((d) => (
+                    <div key={d} className="py-2">{d}</div>
                   ))}
                 </div>
 
                 <div className="grid grid-cols-7 gap-2 mt-2">
                   {calendarDays.map((day, index) => {
-                    if (day === null) {
-                      return <div key={`empty-${index}`} className="h-12" />;
-                    }
-
+                    if (day === null) return <div key={`empty-${index}`} className="h-12" />;
                     const dateString = new Date(
                       calendarMonth.getFullYear(),
                       calendarMonth.getMonth(),
@@ -282,7 +275,7 @@ export default function HeaderUser() {
                       .slice(0, 10);
                     const isSelected = dateString === selectedDate;
                     const hasAppointments = appointments.some(
-                      (appt) => appt.date === dateString && appt.status === "upcoming",
+                      (a) => a.date === dateString && a.status === "upcoming",
                     );
                     return (
                       <button
@@ -309,10 +302,13 @@ export default function HeaderUser() {
                 </div>
               </section>
 
+              {/* Citas del día */}
               <section className="rounded-[2rem] border border-[#e4e2e1] bg-[#f9f6f5] p-6">
                 <div className="mb-4 flex items-center justify-between gap-4">
                   <div>
-                    <h3 className="text-lg font-bold">Citas del {formatDate(`${selectedDate}T00:00:00`)}</h3>
+                    <h3 className="text-lg font-bold">
+                      Citas del {formatDate(`${selectedDate}T00:00:00`)}
+                    </h3>
                     <p className="text-sm text-[#7a7877] mt-1">
                       Detalles de tus reservas para este día.
                     </p>
@@ -329,10 +325,7 @@ export default function HeaderUser() {
                 ) : (
                   <div className="space-y-4 max-h-96 overflow-y-auto">
                     {appointmentsForSelectedDate.map((appt) => (
-                      <div
-                        key={appt.id}
-                        className="rounded-xl border border-[#e4e2e1] bg-white p-4"
-                      >
+                      <div key={appt.id} className="rounded-xl border border-[#e4e2e1] bg-white p-4">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <div>
                             <p className="text-xs uppercase tracking-[0.25em] text-[#7a7877] font-semibold">
@@ -348,10 +341,12 @@ export default function HeaderUser() {
                             <p className="text-xs text-[#7a7877]">Hora de inicio</p>
                           </div>
                         </div>
-
                         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <div className="text-sm text-[#7a7877]">
-                            Fecha: <span className="font-semibold">{formatDate(`${appt.date}T00:00:00`)}</span>
+                            Fecha:{" "}
+                            <span className="font-semibold">
+                              {formatDate(`${appt.date}T00:00:00`)}
+                            </span>
                           </div>
                           <div className="flex flex-wrap gap-2">
                             <button
