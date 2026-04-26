@@ -54,10 +54,12 @@ export default function HeaderBusiness() {
 
   const displayPhoto = user?.photo ?? null;
 
+  // ✅ navLinks ahora incluye "Mensajes" de feature/messages
   const navLinks = [
     { label: "Explorar", href: "/home" },
     { label: "Reservas", href: "/bookings" },
     { label: "Favoritos", href: "/favorites" },
+    { label: "Mensajes", href: "/messages" },
   ];
 
   return (
@@ -69,9 +71,9 @@ export default function HeaderBusiness() {
           </h1>
         </a>
       </div>
-
       <div className="flex items-center gap-4">
         <div className="hidden md:flex gap-6 items-center mr-4">
+          {/* ✅ Renderizado dinámico de developer + link Mensajes de feature/messages */}
           {navLinks.map((link) => (
             <a
               key={link.label}
@@ -86,7 +88,6 @@ export default function HeaderBusiness() {
             </a>
           ))}
         </div>
-
         <div className="w-10 h-10 rounded-full bg-[#e4e2e1] overflow-hidden cursor-pointer active:scale-95 transition-transform">
           <a href="/profile">
             {displayPhoto ? (

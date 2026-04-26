@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import HeaderBusiness from '../../components/user/HeaderUser';
 import { businesses } from '../../data/businesses';
+import {
+  getSession,
+  getOrCreateConversation,
+} from '../../data/messages';
 
 /* ── Favoritos en localStorage ── */
 interface FavoriteBusiness {
@@ -36,6 +40,26 @@ export default function BusinessProfile() {
     const favs = getFavorites();
     setIsFavorite(favs.some(f => f.id === String(business.id)));
   }, [business]);
+
+  // ✅ Handler de mensajes de feature/messages, adaptado al negocio dinámico
+  const handleMessage = () => {
+    if (!business) return;
+    const session = getSession();
+    if (!session) {
+      navigate('/login');
+      return;
+    }
+    const conv = getOrCreateConversation(
+      session.email,
+      session.name,
+      undefined,
+      String(business.id),
+      business.name,
+      business.category,
+      business.image,
+    );
+    navigate(`/messages?conv=${conv.id}`);
+  };
 
   if (!business) {
     return (
@@ -111,6 +135,7 @@ export default function BusinessProfile() {
             </div>
           </div>
 
+          {/* ✅ Tres botones: favorito (developer) + mensaje (feature/messages) + reservar */}
           <div className="flex gap-3">
             <button
               onClick={toggleFavorite}
@@ -125,8 +150,15 @@ export default function BusinessProfile() {
                 favorite
               </span>
             </button>
-            <button className="bg-[#dfdcdc] text-[#2f2f2e] px-8 py-4 rounded-full font-bold active:scale-95 transition-all">Mensaje</button>
-            <button className="bg-gradient-to-br from-[#ab2d00] to-[#ff7851] text-white px-8 py-4 rounded-full font-bold shadow-lg shadow-[#ab2d00]/20 active:scale-95 transition-all">Reservar</button>
+            <button
+              onClick={handleMessage}
+              className="bg-[#dfdcdc] text-[#2f2f2e] px-8 py-4 rounded-full font-bold active:scale-95 transition-all"
+            >
+              Mensaje
+            </button>
+            <button className="bg-gradient-to-br from-[#ab2d00] to-[#ff7851] text-white px-8 py-4 rounded-full font-bold shadow-lg shadow-[#ab2d00]/20 active:scale-95 transition-all">
+              Reservar
+            </button>
           </div>
         </section>
 
