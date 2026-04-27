@@ -6,7 +6,7 @@ import "./index.css";
 import Register from "./pages/Register";
 import Home from "./pages/User/Home";
 import Profile from "./pages/User/Profile";
-import BusinessProfile from "./pages/Business/BusinessProfile";
+import BusinessPublic from "./pages/Business/BusinessPublic";
 import BusinessHome from "./pages/Business/BusinessHome";
 import Messages from "./pages/Messages";
 import Favorites from "./pages/User/Favorites";
@@ -19,7 +19,7 @@ export default function AppRouter() {
       <Route path="/register" element={<Register />} />
       <Route path="/home" element={<Home />} />
       <Route path="/profile" element={<Profile />} />
-      <Route path="/businessProfile/:id" element={<BusinessProfile />} />
+      <Route path="/businessPublic/:id" element={<BusinessPublic />} />
       <Route path="/businessHome" element={<BusinessHome />} />
       <Route path="/messages" element={<Messages />} />
       <Route path="/favorites" element={<Favorites />} />
