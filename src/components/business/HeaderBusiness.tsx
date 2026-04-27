@@ -4,8 +4,8 @@ export default function HeaderBusiness() {
   const navigate = useNavigate();
   const navItems = [
     { label: "Dashboard", to: "/businessHome" },
-    { label: "Reservas", to: "/reservations" },
-    { label: "Clientes", to: "/profile" },
+    // { label: "Reservas", to: "/reservations" },
+    // { label: "Clientes", to: "/profile" },
   ];
 
   return (

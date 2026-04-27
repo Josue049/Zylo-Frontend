@@ -153,7 +153,7 @@ export default function Explore() {
 function BusinessCard({ business }: { business: Business }) {
   return (
     <a
-      href={`/businessProfile/${business.id}`}
+      href={`/businessPublic/${business.id}`}
       className="bg-[#ffffff] rounded-xl p-4 flex flex-col gap-5 hover:shadow-xl transition-all duration-500 group cursor-pointer border border-transparent hover:border-[#ff785133]"
     >
       <div className="w-full h-40 rounded-lg overflow-hidden shrink-0">
