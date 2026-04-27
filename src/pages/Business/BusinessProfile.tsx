@@ -14,15 +14,24 @@ interface FavoriteBusiness {
   address: string;
 }
 
-const FAVORITES_KEY = 'zylo_favorites';
+const SESSION_KEY = 'zylo_session';
+
+function getFavoritesKey(): string {
+  try {
+    const session = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+    return `zylo_favorites_${session?.email ?? 'guest'}`;
+  } catch {
+    return 'zylo_favorites_guest';
+  }
+}
 
 function getFavorites(): FavoriteBusiness[] {
-  try { return JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]'); }
+  try { return JSON.parse(localStorage.getItem(getFavoritesKey()) || '[]'); }
   catch { return []; }
 }
 
 function saveFavorites(favs: FavoriteBusiness[]) {
-  localStorage.setItem(FAVORITES_KEY, JSON.stringify(favs));
+  localStorage.setItem(getFavoritesKey(), JSON.stringify(favs));
 }
 
 export default function BusinessProfile() {
@@ -221,16 +230,17 @@ export default function BusinessProfile() {
                 </ul>
               </div>
               <div className="pt-6 border-t border-[#dfdcdc]">
-                <h3 className="font-bold mb-4 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#ab2d00]">location_on</span> Ubicación
-                </h3>
-                <p className="text-sm text-[#5c5b5b] font-medium">{business.address}</p>
-                <div className="mt-3 w-full h-48 rounded-xl overflow-hidden bg-[#dfdcdc] relative">
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-[#ab2d00] text-5xl" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
+                   <h3 className="font-bold mb-4 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[#ab2d00]">location_on</span> Ubicación
+                   </h3>
+               <div className="flex items-start gap-3">
+                    <span className="material-symbols-outlined text-[#ab2d00] mt-0.5" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
+                  <div>
+                   <p className="text-sm text-[#2f2f2e] font-semibold">{business.address}</p>
+                   <p className="text-xs text-[#5c5b5b] mt-1">Lima, Perú</p>
                   </div>
-                </div>
-              </div>
+               </div>
+             </div>
             </div>
           </aside>
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import HeaderUser from '../../components/user/HeaderUser'
 import { businesses, type Business } from '../../data/businesses'
 
@@ -28,6 +28,12 @@ export default function Explore() {
   const [activeNav, setActiveNav] = useState(0)
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')
+
+  useEffect(() => {
+  const params = new URLSearchParams(window.location.search)
+  const cat = params.get('category')
+  if (cat) setSelectedCategory(cat)
+}, [])
 
   const filteredBusinesses = businesses.filter((biz) => {
     const searchText = search.toLowerCase()

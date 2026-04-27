@@ -43,7 +43,7 @@ export const businesses: Business[] = [
     rating: 4.9,
     availability: 'Hoy a las 2:30 PM',
     available: true,
-    address: '45 Wellness Ave, San Francisco, CA',
+    address: 'Av. Larco 1301, Miraflores, Lima, Perú',
     description: 'The Serene Sanctuary es un refugio de paz y relajación. Ofrecemos tratamientos de spa de lujo diseñados para renovar cuerpo y mente, con terapeutas certificados y productos naturales de primera calidad.',
     hours: { weekdays: '09:00 AM - 08:00 PM', saturday: '10:00 AM - 06:00 PM', sunday: '11:00 AM - 05:00 PM' },
     services: [
@@ -71,7 +71,7 @@ export const businesses: Business[] = [
     rating: 4.7,
     availability: 'Próximo: Mañana 9:00 AM',
     available: false,
-    address: '88 Fitness Blvd, San Francisco, CA',
+    address: 'Av. Javier Prado Este 4200, Surco, Lima, Perú',
     description: 'Iron & Soul Gym es más que un gimnasio; es una comunidad de personas apasionadas por el fitness. Contamos con equipos de última generación y entrenadores certificados listos para ayudarte a alcanzar tus metas.',
     hours: { weekdays: '06:00 AM - 10:00 PM', saturday: '07:00 AM - 08:00 PM', sunday: '08:00 AM - 06:00 PM' },
     services: [
@@ -99,7 +99,7 @@ export const businesses: Business[] = [
     rating: 4.8,
     availability: 'Hoy a las 4:00 PM',
     available: true,
-    address: '22 Beauty Lane, San Francisco, CA',
+    address: 'Calle Schell 319, Miraflores, Lima, Perú',
     description: 'Glow Beauty Studio es tu destino para lucir radiante. Nuestro equipo de estilistas y esteticistas expertos utilizan las últimas técnicas y productos premium para realzar tu belleza natural.',
     hours: { weekdays: '09:00 AM - 07:00 PM', saturday: '09:00 AM - 06:00 PM', sunday: 'Cerrado' },
     services: [
@@ -127,7 +127,7 @@ export const businesses: Business[] = [
     rating: 4.6,
     availability: 'Mañana a las 11:00 AM',
     available: false,
-    address: '78 Glamour St, San Francisco, CA',
+    address: 'Av. Benavides 1944, Miraflores, Lima, Perú',
     description: 'Luxe Hair & Nails combina estilo y lujo en cada servicio. Desde cortes de vanguardia hasta manicuras de gel, nuestros especialistas te brindan una experiencia premium que te dejará impecable.',
     hours: { weekdays: '10:00 AM - 07:00 PM', saturday: '10:00 AM - 05:00 PM', sunday: 'Cerrado' },
     services: [
@@ -155,7 +155,7 @@ export const businesses: Business[] = [
     rating: 4.8,
     availability: 'Hoy a las 3:15 PM',
     available: true,
-    address: '10 Health Plaza, San Francisco, CA',
+    address: 'Av. Arequipa 2955, San Isidro, Lima, Perú',
     description: 'VitalCare Clinic es tu aliado en salud y bienestar. Contamos con médicos especialistas, tecnología de punta y un enfoque integral para cuidar de ti y tu familia con la más alta calidad.',
     hours: { weekdays: '08:00 AM - 06:00 PM', saturday: '09:00 AM - 01:00 PM', sunday: 'Cerrado' },
     services: [
@@ -183,7 +183,7 @@ export const businesses: Business[] = [
     rating: 4.5,
     availability: 'Mañana a las 10:00 AM',
     available: false,
-    address: '33 Smile Rd, San Francisco, CA',
+    address: 'Av. Conquistadores 1040, San Isidro, Lima, Perú',
     description: 'Dental Smile Center se dedica a darte la sonrisa que siempre soñaste. Con tecnología dental de última generación y un equipo de odontólogos altamente calificados, tu salud bucal está en las mejores manos.',
     hours: { weekdays: '08:00 AM - 05:00 PM', saturday: '09:00 AM - 12:00 PM', sunday: 'Cerrado' },
     services: [
@@ -196,7 +196,7 @@ export const businesses: Business[] = [
     ],
     gallery: [
       'https://images.unsplash.com/photo-1629909613654-28e377c37b09?q=80&w=800',
-      'https://images.unsplash.com/photo-1588776814546-1ffbb172d936?q=80&w=800',
+      'https://images.unsplash.com/photo-1606811841689-23dfddce3e95?q=80&w=800',
       'https://images.unsplash.com/photo-1606811971618-4486d14f3f99?q=80&w=800',
       'https://images.unsplash.com/photo-1609840114035-3c981b782dfe?q=80&w=800',
     ],
@@ -211,7 +211,7 @@ export const businesses: Business[] = [
     rating: 4.9,
     availability: 'Hoy a las 5:00 PM',
     available: true,
-    address: '55 Pet Haven Dr, San Francisco, CA',
+    address: 'Calle Los Pinos 192, San Isidro, Lima, Perú',
     description: 'Paws & Polish Salon es el lugar donde tu mascota recibe el cuidado y amor que merece. Nuestros groómers certificados trabajan con cariño y paciencia para que tu peludo amigo luzca y se sienta increíble.',
     hours: { weekdays: '09:00 AM - 06:00 PM', saturday: '09:00 AM - 05:00 PM', sunday: '10:00 AM - 03:00 PM' },
     services: [
@@ -239,7 +239,7 @@ export const businesses: Business[] = [
     rating: 4.7,
     availability: 'Hoy a las 6:00 PM',
     available: true,
-    address: '99 Vet Circle, San Francisco, CA',
+    address: 'Av. Primavera 1050, Surco, Lima, Perú',
     description: 'Happy Tails Vet es una clínica veterinaria de confianza comprometida con la salud y bienestar de tus mascotas. Nuestros veterinarios con años de experiencia brindan atención médica con el más alto estándar.',
     hours: { weekdays: '08:00 AM - 07:00 PM', saturday: '09:00 AM - 04:00 PM', sunday: '10:00 AM - 02:00 PM' },
     services: [

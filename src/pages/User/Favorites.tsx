@@ -10,11 +10,20 @@ interface FavoriteBusiness {
   address: string;
 }
 
-const FAVORITES_KEY = "zylo_favorites";
+const SESSION_KEY = "zylo_session";
+
+function getFavoritesKey(): string {
+  try {
+    const session = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+    return `zylo_favorites_${session?.email ?? "guest"}`;
+  } catch {
+    return "zylo_favorites_guest";
+  }
+}
 
 function getFavorites(): FavoriteBusiness[] {
   try {
-    return JSON.parse(localStorage.getItem(FAVORITES_KEY) || "[]");
+    return JSON.parse(localStorage.getItem(getFavoritesKey()) || "[]");
   } catch {
     return [];
   }
@@ -22,7 +31,7 @@ function getFavorites(): FavoriteBusiness[] {
 
 function removeFavorite(id: string): FavoriteBusiness[] {
   const updated = getFavorites().filter((f) => f.id !== id);
-  localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
+  localStorage.setItem(getFavoritesKey(), JSON.stringify(updated));
   return updated;
 }
 
