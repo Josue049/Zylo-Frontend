@@ -2,6 +2,8 @@ import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import NotificationBell from "../NotificationBell";
 
+// ─── Storage helpers (mirrors BusinessUserProfile) ────────────────────────────
+
 function getSessionEmail(): string {
   try {
     const s = JSON.parse(localStorage.getItem("zylo_session") || "null");
@@ -11,19 +13,40 @@ function getSessionEmail(): string {
   }
 }
 
+function getBusinessLogo(email: string): string | null {
+  if (!email) return null;
+  try {
+    const profiles = JSON.parse(
+      localStorage.getItem("zylo_business_profiles") || "[]"
+    ) as Array<{ email: string; logo?: string; businessName?: string }>;
+    const profile = profiles.find(
+      (p) => p.email.toLowerCase() === email.toLowerCase()
+    );
+    return profile?.logo ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export default function HeaderBusiness() {
   const navigate = useNavigate();
   const [sessionEmail] = useState<string>(() => getSessionEmail());
 
+  // Re-read logo on every render so it reflects changes made in BusinessUserProfile
+  // without needing a global state manager. useState with a function arg only runs once,
+  // so we read it directly on each render instead.
+  const logo = getBusinessLogo(sessionEmail);
+
   const navItems = [
     { label: "Dashboard", to: "/businessHome" },
-    { label: "Reservas", to: "/reservations" },
     { label: "Mensajes", to: "/business-messages" },
-    { label: "Clientes", to: "/profile" },
   ];
 
   return (
     <header className="bg-[#f9f6f5] flex justify-between items-center px-6 py-4 w-full fixed top-0 z-50 shadow-[0_1px_0_rgba(47,47,46,0.06)]">
+      {/* Logo / brand */}
       <button
         onClick={() => navigate("/businessHome")}
         className="flex items-center gap-4"
@@ -32,7 +55,9 @@ export default function HeaderBusiness() {
           Zylo
         </span>
       </button>
+
       <div className="flex items-center gap-4">
+        {/* Nav links */}
         <nav className="hidden md:flex items-center gap-8 mr-8">
           {navItems.map((item) => (
             <NavLink
@@ -49,17 +74,29 @@ export default function HeaderBusiness() {
           ))}
         </nav>
 
+        {/* Notifications */}
         {sessionEmail && <NotificationBell userId={sessionEmail} />}
 
+        {/* Business avatar — shows logo if available, fallback icon otherwise */}
         <button
-          onClick={() => navigate("/profile")}
-          className="w-10 h-10 rounded-full bg-[#e4e2e1] overflow-hidden"
+          onClick={() => navigate("/businessUserProfile")}
+          className="w-10 h-10 rounded-full bg-[#e4e2e1] overflow-hidden flex items-center justify-center shrink-0 ring-2 ring-transparent hover:ring-[#ab2d00]/30 transition-all"
+          title="Perfil del negocio"
         >
-          <img
-            alt="User Profile"
-            className="w-full h-full object-cover"
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBHs5C4K4pnPEFGLhQzFx964g_j3yT3Sa8V3Cfi-5iODayL26eSFSrk_lViSvmCZrOXdBri3IzmsJV7tDXUggwXCRtafp9N0Uq9aZj-ePoZ7Fl0ESlrv1XZCbKYb5RlBahqICpSx7-qJzj6v3YFOulNpEa6gyb2wRRw9yeHIgM472KwGmSys_SWeewXwoQ7HaH_IiUtD5nJpk4NgHNmgIQn02Yc1NA3cohUy9YO6iiq8EzQhHu1NQtoU7y0y_yTTVcBfvfXcN3e52Zj"
-          />
+          {logo ? (
+            <img
+              alt="Business logo"
+              className="w-full h-full object-cover"
+              src={logo}
+            />
+          ) : (
+            <span
+              className="material-symbols-outlined text-[#5c5b5b]"
+              style={{ fontSize: 20 }}
+            >
+              storefront
+            </span>
+          )}
         </button>
       </div>
     </header>

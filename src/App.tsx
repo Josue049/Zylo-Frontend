@@ -11,6 +11,8 @@ import BusinessHome from "./pages/Business/BusinessHome";
 import Messages from "./pages/Messages";
 import Favorites from "./pages/User/Favorites";
 import BusinessMessages from "./pages/Business/BusinessMessages";
+import BusinessUserProfile from "./pages/Business/BusinessUserProfile";
+import Booking from "./pages/Business/Booking";
 
 export default function AppRouter() {
   return (
@@ -21,6 +23,8 @@ export default function AppRouter() {
       <Route path="/home" element={<Home />} />
       <Route path="/profile" element={<Profile />} />
       <Route path="/businessProfile/:id" element={<BusinessProfile />} />
+      <Route path="/booking/:id" element={<Booking />} />
+      <Route path="/businessUserProfile" element={<BusinessUserProfile />} />
       <Route path="/businessHome" element={<BusinessHome />} />
       <Route path="/messages" element={<Messages />} />
       <Route path="/favorites" element={<Favorites />} />
