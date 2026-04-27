@@ -11,6 +11,7 @@ import BusinessHome from "./pages/Business/BusinessHome";
 import Messages from "./pages/Messages";
 import Favorites from "./pages/User/Favorites";
 import BusinessMessages from "./pages/Business/BusinessMessages";
+import Booking from "./pages/Business/Booking";
 
 export default function AppRouter() {
   return (
@@ -25,6 +26,7 @@ export default function AppRouter() {
       <Route path="/messages" element={<Messages />} />
       <Route path="/favorites" element={<Favorites />} />
       <Route path="/business-messages" element={<BusinessMessages />} />
+      <Route path="/booking/:id" element={<Booking />} />
     </Routes>
   );
 }

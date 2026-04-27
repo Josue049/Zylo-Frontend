@@ -34,7 +34,7 @@ function saveFavorites(favs: FavoriteBusiness[]) {
   localStorage.setItem(getFavoritesKey(), JSON.stringify(favs));
 }
 
-export default function BusinessProfile() {
+export default function booking() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [isFavorite, setIsFavorite] = useState(false);
@@ -143,11 +143,10 @@ export default function BusinessProfile() {
           <div className="flex gap-3">
             <button
               onClick={toggleFavorite}
-              className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 border-2 ${
-                isFavorite
+              className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 border-2 ${isFavorite
                   ? 'bg-[#ff7851]/10 border-[#ab2d00] text-[#ab2d00]'
                   : 'bg-[#dfdcdc] border-transparent text-[#2f2f2e] hover:border-[#ab2d00] hover:text-[#ab2d00]'
-              }`}
+                }`}
               title={isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
             >
               <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: isFavorite ? "'FILL' 1" : "'FILL' 0" }}>
@@ -161,7 +160,28 @@ export default function BusinessProfile() {
               Mensaje
             </button>
             <button
-              onClick={() => navigate(`/booking/${business.id}`)}
+              onClick={() =>
+                navigate(`/booking/${business.id}`, {
+                  state: {
+                    business: {
+                      id: business.id,
+                      name: business.name,
+                      image: business.image,
+                      imageAlt: business.name,
+                      category: business.category,
+                      distance: "Lima, Perú",
+                      rating: business.rating,
+                      availability: "",
+                      available: true,
+                      bookingTitle: business.services[0]?.title ?? "Servicio",
+                      duration: "60 min",
+                      price: parseFloat(
+                        business.services[0]?.price?.replace(/[^0-9.]/g, "") ?? "0"
+                      ),
+                    },
+                  },
+                })
+              }
               className="bg-gradient-to-br from-[#ab2d00] to-[#ff7851] text-white px-8 py-4 rounded-full font-bold shadow-lg shadow-[#ab2d00]/20 active:scale-95 transition-all"
             >
               Reservar
@@ -230,17 +250,17 @@ export default function BusinessProfile() {
                 </ul>
               </div>
               <div className="pt-6 border-t border-[#dfdcdc]">
-                   <h3 className="font-bold mb-4 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[#ab2d00]">location_on</span> Ubicación
-                   </h3>
-               <div className="flex items-start gap-3">
-                    <span className="material-symbols-outlined text-[#ab2d00] mt-0.5" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
+                <h3 className="font-bold mb-4 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#ab2d00]">location_on</span> Ubicación
+                </h3>
+                <div className="flex items-start gap-3">
+                  <span className="material-symbols-outlined text-[#ab2d00] mt-0.5" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
                   <div>
-                   <p className="text-sm text-[#2f2f2e] font-semibold">{business.address}</p>
-                   <p className="text-xs text-[#5c5b5b] mt-1">Lima, Perú</p>
+                    <p className="text-sm text-[#2f2f2e] font-semibold">{business.address}</p>
+                    <p className="text-xs text-[#5c5b5b] mt-1">Lima, Perú</p>
                   </div>
-               </div>
-             </div>
+                </div>
+              </div>
             </div>
           </aside>
 
