@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { notifyStatusChange } from "../../data/notifications";
 
 type Reservation = {
     id: number;
@@ -6,6 +7,8 @@ type Reservation = {
     servicio: string;
     fecha: string;
     estado: string;
+    userId?: string;
+    businessName?: string;
 };
 
 export default function ReservationsManager() {
@@ -79,12 +82,42 @@ export default function ReservationsManager() {
         localStorage.setItem("reservations", JSON.stringify(newData));
     };
 
+    const getSessionEmail = (): string => {
+        try {
+            const s = JSON.parse(localStorage.getItem('zylo_session') || 'null')
+            return s?.email ?? ''
+        } catch { return '' }
+    }
+
     const changeStatus = (id: number, status: string) => {
         const updated = reservations.map(r =>
             r.id === id ? { ...r, estado: status } : r
         );
 
         saveReservations(updated);
+
+        // Generar notificación al usuario si el estado es aceptado o rechazado
+        if (status === 'aceptado' || status === 'rechazado') {
+            const reservation = reservations.find(r => r.id === id);
+            if (reservation) {
+                // Intentar obtener userId desde zylo_appointments (tienen el email real)
+                const appointments = JSON.parse(localStorage.getItem('zylo_appointments') || '[]');
+                const matched = appointments.find((a: { service?: string; id?: number; status?: string }) =>
+                    a.service === reservation.servicio
+                );
+                const userId = reservation.userId ?? matched?.userEmail ?? getSessionEmail();
+                const businessName = reservation.businessName ?? 'el negocio';
+
+                if (userId) {
+                    notifyStatusChange(
+                        userId,
+                        reservation.servicio,
+                        businessName,
+                        status as 'aceptado' | 'rechazado'
+                    );
+                }
+            }
+        }
     };
 
     return (

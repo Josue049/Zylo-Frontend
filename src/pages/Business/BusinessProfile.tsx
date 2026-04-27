@@ -58,7 +58,7 @@ export default function BusinessProfile() {
       session.email,
       session.name,
       undefined,
-      String(business.id),
+      business.email,
       business.name,
       business.category,
       business.image,

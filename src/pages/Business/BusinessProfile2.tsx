@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import HeaderUser from "../../components/user/HeaderUser";
+import { scheduleAppointmentReminder } from "../../data/notifications";
 
 interface Business {
   id: number;
@@ -157,6 +158,21 @@ const BusinessProfile: React.FC = () => {
       STORAGE_KEY,
       JSON.stringify([...currentAppointments, newAppointment])
     );
+
+    // Programar recordatorio 24h antes de la cita
+    try {
+      const session = JSON.parse(localStorage.getItem("zylo_session") || "null");
+      if (session?.email) {
+        scheduleAppointmentReminder(
+          session.email,
+          newAppointment.service,
+          newAppointment.businessName,
+          newAppointment.date,
+          newAppointment.time,
+          newAppointment.id,
+        );
+      }
+    } catch (_) { /* silencioso */ }
 
     navigate("/home");
   };

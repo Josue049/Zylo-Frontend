@@ -1,10 +1,24 @@
+import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import NotificationBell from "../NotificationBell";
+
+function getSessionEmail(): string {
+  try {
+    const s = JSON.parse(localStorage.getItem("zylo_session") || "null");
+    return s?.email ?? "";
+  } catch {
+    return "";
+  }
+}
 
 export default function HeaderBusiness() {
   const navigate = useNavigate();
+  const [sessionEmail] = useState<string>(() => getSessionEmail());
+
   const navItems = [
     { label: "Dashboard", to: "/businessHome" },
     { label: "Reservas", to: "/reservations" },
+    { label: "Mensajes", to: "/business-messages" },
     { label: "Clientes", to: "/profile" },
   ];
 
@@ -34,6 +48,9 @@ export default function HeaderBusiness() {
             </NavLink>
           ))}
         </nav>
+
+        {sessionEmail && <NotificationBell userId={sessionEmail} />}
+
         <button
           onClick={() => navigate("/profile")}
           className="w-10 h-10 rounded-full bg-[#e4e2e1] overflow-hidden"

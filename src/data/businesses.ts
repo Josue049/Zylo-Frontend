@@ -1,6 +1,8 @@
 export interface Business {
   id: number
   name: string
+  email: string      // credencial de login del negocio
+  password: string   // contraseña predefinida (se hashea al sembrar en zylo_users)
   image: string
   imageAlt: string
   category: string
@@ -36,6 +38,8 @@ export const businesses: Business[] = [
   {
     id: 1,
     name: 'The Serene Sanctuary',
+    email: 'serene@zylo.com',
+    password: 'zylo1234',
     image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=800',
     imageAlt: 'Interior de spa moderno',
     category: 'Bienestar',
@@ -64,6 +68,8 @@ export const businesses: Business[] = [
   {
     id: 2,
     name: 'Iron & Soul Gym',
+    email: 'ironsoul@zylo.com',
+    password: 'zylo1234',
     image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=800',
     imageAlt: 'Gimnasio moderno',
     category: 'Fitness',
@@ -92,6 +98,8 @@ export const businesses: Business[] = [
   {
     id: 3,
     name: 'Glow Beauty Studio',
+    email: 'glow@zylo.com',
+    password: 'zylo1234',
     image: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=800',
     imageAlt: 'Salón de belleza',
     category: 'Belleza',
@@ -113,13 +121,15 @@ export const businesses: Business[] = [
     gallery: [
       'https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=800',
       'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=800',
-      'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?q=80&w=800',
+      'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?q=80&w=400',
       'https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?q=80&w=800',
     ],
   },
   {
     id: 4,
     name: 'Luxe Hair & Nails',
+    email: 'luxe@zylo.com',
+    password: 'zylo1234',
     image: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=800',
     imageAlt: 'Salón de cabello',
     category: 'Belleza',
@@ -148,6 +158,8 @@ export const businesses: Business[] = [
   {
     id: 5,
     name: 'VitalCare Clinic',
+    email: 'vitalcare@zylo.com',
+    password: 'zylo1234',
     image: 'https://images.unsplash.com/photo-1586773860418-d37222d8fce3?q=80&w=800',
     imageAlt: 'Clínica de salud',
     category: 'Salud',
@@ -176,6 +188,8 @@ export const businesses: Business[] = [
   {
     id: 6,
     name: 'Dental Smile Center',
+    email: 'dental@zylo.com',
+    password: 'zylo1234',
     image: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?q=80&w=800',
     imageAlt: 'Clínica dental',
     category: 'Salud',
@@ -204,6 +218,8 @@ export const businesses: Business[] = [
   {
     id: 7,
     name: 'Paws & Polish Salon',
+    email: 'paws@zylo.com',
+    password: 'zylo1234',
     image: 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?q=80&w=800',
     imageAlt: 'Salón para mascotas',
     category: 'Mascotas',
@@ -232,6 +248,8 @@ export const businesses: Business[] = [
   {
     id: 8,
     name: 'Happy Tails Vet',
+    email: 'happytails@zylo.com',
+    password: 'zylo1234',
     image: 'https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?q=80&w=800',
     imageAlt: 'Clínica veterinaria',
     category: 'Mascotas',
