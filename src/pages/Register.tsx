@@ -10,7 +10,6 @@ interface FormData {
   password: string
   confirmPassword: string
   terms: boolean
-  
 
   business_name: string
   category_id: string
@@ -26,6 +25,11 @@ interface FormErrors {
   confirmPassword?: string
   terms?: string
   submit?: string
+  business_name?: string
+  category_id?: string
+  location?: string
+  description?: string
+  [key: string]: any // Permite la indexación dinámica segura con llaves de FormData
 }
 
 type SubmitStatus = 'idle' | 'loading' | 'success' | 'duplicate'
@@ -39,7 +43,6 @@ export default function Register() {
     confirmPassword: '',
     terms: false,
 
-    
     business_name: '',
     category_id: '',
     location: '',
@@ -72,7 +75,6 @@ export default function Register() {
 
     setSubmitStatus('loading')
 
-    // Construcción del cuerpo siguiendo exactamente el esquema de Swagger
     const requestBody = {
       account_type: accountType,
       name: form.name.trim(),
@@ -96,8 +98,7 @@ export default function Register() {
       })
 
       if (response.ok) {
-        const data = await response.json()
-        // Guardar sesión activa si el backend retorna los datos o token de acceso
+        await response.json() // Corregido TS6133: Se procesa la respuesta sin declarar una variable huérfana
         localStorage.setItem('zylo_session', JSON.stringify({ 
           email: requestBody.email, 
           name: requestBody.name, 
@@ -105,7 +106,6 @@ export default function Register() {
         }))
         setSubmitStatus('success')
       } else if (response.status === 400 || response.status === 409) {
-        // Manejo común de correos duplicados por parte del servidor
         setErrors(prev => ({ ...prev, email: `Este correo ya se encuentra registrado.` }))
         setSubmitStatus('duplicate')
       } else {
@@ -126,7 +126,6 @@ export default function Register() {
     if (submitStatus !== 'idle') setSubmitStatus('idle')
   }
 
-  // Pantalla de éxito
   if (submitStatus === 'success') {
     return (
       <div className="bg-surface font-body text-on-surface min-h-screen flex flex-col">
@@ -192,7 +191,6 @@ export default function Register() {
         </div>
 
         <div className="w-full max-w-4xl grid md:grid-cols-2 gap-12 items-center">
-          {/* Left editorial */}
           <div className="hidden md:flex flex-col space-y-8">
             <div className="space-y-4">
               <span className="inline-block px-4 py-1 rounded-full bg-[#ffc3c0] text-[#852327] text-xs font-bold tracking-widest uppercase">
@@ -202,7 +200,7 @@ export default function Register() {
                 Descubre la energía <span className="text-primary">cinética</span> del servicio local.
               </h1>
               <p className="text-on-surface-variant text-lg leading-relaxed max-w-sm">
-                Conecta con profesionales de primer nivel y gestiona tus reservas con eficiencia.
+                Conecta con profesionales de primer nivel y gestiona tus reservas con efficiency.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -217,7 +215,6 @@ export default function Register() {
             </div>
           </div>
 
-          {/* Form card */}
           <div className="bg-[#ffffff] rounded-xl p-6 sm:p-8 md:p-10 shadow-[0_20px_40px_-10px_rgba(47,47,46,0.06)] border border-[#afadac]/10 w-full">
             <div className="md:hidden text-center mb-6">
               <span className="inline-block px-3 py-1 rounded-full bg-[#ffc3c0] text-[#852327] text-xs font-bold tracking-widest uppercase mb-3">
@@ -234,7 +231,6 @@ export default function Register() {
             </div>
 
             <div className="space-y-5">
-              {/* Account type toggle */}
               <div className="space-y-2">
                 <label className="block text-xs font-semibold text-on-surface-variant px-1 tracking-widest">
                   TIPO DE CUENTA
@@ -267,7 +263,6 @@ export default function Register() {
                 </div>
               </div>
 
-              {/* Full name */}
               <Field label="NOMBRE COMPLETO" error={errors.name}>
                 <InputWrapper icon="person">
                   <input
@@ -281,22 +276,20 @@ export default function Register() {
                 </InputWrapper>
               </Field>
 
-              {/* Conditional Business Name Field */}
               {accountType === 'business' && (
-                <Field label="NOMBRE DE LA EMPRESA" error={errors.name ? undefined : undefined}>
+                <Field label="NOMBRE DE LA EMPRESA" error={errors.business_name}>
                   <InputWrapper icon="storefront">
                     <input
                       type="text"
                       placeholder="Nombre comercial de tu empresa"
                       value={form.business_name}
                       onChange={set('business_name')}
-                      className={inputClass(false)}
+                      className={inputClass(!!errors.business_name)}
                     />
                   </InputWrapper>
                 </Field>
               )}
 
-              {/* Email & Phone */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <Field label="CORREO" error={errors.email}>
                   <InputWrapper icon="mail">
@@ -326,7 +319,6 @@ export default function Register() {
                 </Field>
               </div>
 
-              {/* Password */}
               <Field label="CONTRASEÑA" error={errors.password}>
                 <InputWrapper icon="lock" onToggle={() => setShowPassword(v => !v)} showToggle showingPassword={showPassword}>
                   <input
@@ -341,7 +333,6 @@ export default function Register() {
                 {form.password.length > 0 && <PasswordStrength password={form.password} />}
               </Field>
 
-              {/* Confirm password */}
               <Field label="CONFIRMAR CONTRASEÑA" error={errors.confirmPassword}>
                 <InputWrapper icon="enhanced_encryption" onToggle={() => setShowConfirm(v => !v)} showToggle showingPassword={showConfirm}>
                   <input
@@ -355,7 +346,6 @@ export default function Register() {
                 </InputWrapper>
               </Field>
 
-              {/* Terms */}
               <div className="flex items-start space-x-3 pt-1">
                 <div className="flex items-center h-5 mt-0.5">
                   <input
@@ -381,7 +371,6 @@ export default function Register() {
                 </div>
               )}
 
-              {/* Alerta de correo duplicado */}
               {submitStatus === 'duplicate' && (
                 <div className="rounded-2xl border border-[#ff785133] bg-[#fff5f2] p-4 flex gap-3">
                   <span className="material-symbols-outlined text-primary mt-0.5 flex-shrink-0" style={{ fontSize: 20 }}>
@@ -400,7 +389,6 @@ export default function Register() {
                 </div>
               )}
 
-              {/* Submit Button */}
               <button
                 onClick={handleSubmit}
                 disabled={submitStatus === 'loading'}
@@ -410,7 +398,6 @@ export default function Register() {
                 {submitStatus !== 'loading' && <span className="material-symbols-outlined text-lg">arrow_forward</span>}
               </button>
 
-              {/* Login link */}
               <div className="text-center pt-1">
                 <p className="text-on-surface-variant text-sm">
                   ¿Ya tienes cuenta? <a href="/login" className="text-primary font-extrabold hover:underline ml-1">Inicia Sesión</a>
@@ -427,7 +414,6 @@ export default function Register() {
   )
 }
 
-/* ── Componentes de Soporte Auxiliares Estáticos ── */
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
