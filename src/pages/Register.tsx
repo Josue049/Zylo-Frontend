@@ -10,6 +10,12 @@ interface FormData {
   password: string
   confirmPassword: string
   terms: boolean
+  
+
+  business_name: string
+  category_id: string
+  location: string
+  description: string
 }
 
 interface FormErrors {
@@ -19,50 +25,10 @@ interface FormErrors {
   password?: string
   confirmPassword?: string
   terms?: string
+  submit?: string
 }
 
-interface StoredUser {
-  name: string
-  email: string
-  phone: string
-  passwordHash: string
-  accountType: AccountType
-  createdAt: string
-}
-
-// Simple hash para no guardar contraseña en plano
-function simpleHash(str: string): string {
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i)
-    hash = (hash << 5) - hash + char
-    hash |= 0
-  }
-  return hash.toString(16)
-}
-
-const STORAGE_KEY = 'zylo_users'
-
-function getStoredUsers(): StoredUser[] {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
-  } catch {
-    return []
-  }
-}
-
-function saveUser(user: StoredUser): void {
-  const users = getStoredUsers()
-  users.push(user)
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(users))
-}
-
-function getExistingAccountType(email: string): AccountType | null {
-  const found = getStoredUsers().find(u => u.email.toLowerCase() === email.toLowerCase())
-  return found ? found.accountType : null
-}
-
-type SubmitStatus = 'idle' | 'success' | 'duplicate'
+type SubmitStatus = 'idle' | 'loading' | 'success' | 'duplicate'
 
 export default function Register() {
   const [form, setForm] = useState<FormData>({
@@ -72,9 +38,14 @@ export default function Register() {
     password: '',
     confirmPassword: '',
     terms: false,
+
+    
+    business_name: '',
+    category_id: '',
+    location: '',
+    description: '',
   })
   const [accountType, setAccountType] = useState<AccountType>('user')
-  const [duplicateAccountType, setDuplicateAccountType] = useState<AccountType | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
@@ -95,42 +66,63 @@ export default function Register() {
     return Object.keys(e).length === 0
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setSubmitStatus('idle')
-    setDuplicateAccountType(null)
     if (!validate()) return
 
-    const existingType = getExistingAccountType(form.email)
-    if (existingType !== null) {
-      const label = existingType === 'user' ? 'usuario' : 'empresa'
-      setErrors(prev => ({ ...prev, email: `Este correo ya está registrado como ${label}` }))
-      setDuplicateAccountType(existingType)
-      setSubmitStatus('duplicate')
-      return
-    }
+    setSubmitStatus('loading')
 
-    const newUser: StoredUser = {
+    // Construcción del cuerpo siguiendo exactamente el esquema de Swagger
+    const requestBody = {
+      account_type: accountType,
       name: form.name.trim(),
       email: form.email.trim().toLowerCase(),
+      password: form.password,
       phone: form.phone.trim(),
-      passwordHash: simpleHash(form.password),
-      accountType,
-      createdAt: new Date().toISOString(),
+      location: form.location,
+      business_name: accountType === 'business' ? form.business_name.trim() : "",
+      category_id: form.category_id,
+      description: form.description
     }
 
-    saveUser(newUser)
-    // Guardar sesión activa
-    localStorage.setItem('zylo_session', JSON.stringify({ email: newUser.email, name: newUser.name, accountType }))
-    setSubmitStatus('success')
+    try {
+      const response = await fetch('https://backend-zylo.vercel.app/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(requestBody),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        // Guardar sesión activa si el backend retorna los datos o token de acceso
+        localStorage.setItem('zylo_session', JSON.stringify({ 
+          email: requestBody.email, 
+          name: requestBody.name, 
+          accountType 
+        }))
+        setSubmitStatus('success')
+      } else if (response.status === 400 || response.status === 409) {
+        // Manejo común de correos duplicados por parte del servidor
+        setErrors(prev => ({ ...prev, email: `Este correo ya se encuentra registrado.` }))
+        setSubmitStatus('duplicate')
+      } else {
+        throw new Error('Error en la respuesta del servidor')
+      }
+    } catch (error) {
+      setSubmitStatus('idle')
+      setErrors(prev => ({ ...prev, submit: 'Hubo un problema de conexión con el servidor. Inténtalo más tarde.' }))
+    }
   }
 
   const set = (field: keyof FormData) => (
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    const value = field === 'terms' ? e.target.checked : e.target.value
+    const value = field === 'terms' ? (e.target as HTMLInputElement).checked : e.target.value
     setForm(prev => ({ ...prev, [field]: value }))
     if (errors[field]) setErrors(prev => ({ ...prev, [field]: undefined }))
-    if (field === 'email') setDuplicateAccountType(null)
     if (submitStatus !== 'idle') setSubmitStatus('idle')
   }
 
@@ -149,7 +141,7 @@ export default function Register() {
                 ¡Bienvenido, {form.name.split(' ')[0]}!
               </h2>
               <p className="text-on-surface-variant">
-                Tu cuenta ha sido creada correctamente.
+                Tu cuenta ha sido creada correctamente en el servidor.
               </p>
             </div>
             <div className="bg-[#f3f0ef] rounded-xl p-4 text-left space-y-2 text-sm">
@@ -192,31 +184,22 @@ export default function Register() {
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen flex flex-col selection:bg-[#ff7851] selection:text-[#470e00]">
-
       <HeaderClose />
-
       <main className="relative px-4 sm:px-6 pb-24 pt-4 flex flex-col items-center flex-grow">
-
-        {/* Background accent */}
         <div className="absolute top-0 right-0 -z-10 w-1/2 h-[600px] opacity-10 bg-gradient-to-bl from-[#ff7851] to-transparent rounded-bl-[10rem] pointer-events-none" />
-
-        {/* Decorative ring */}
         <div className="fixed bottom-12 left-12 opacity-20 hidden lg:block pointer-events-none">
           <div className="w-32 h-32 rounded-full border-[24px] border-[#ff5d2b]/30" />
         </div>
 
         <div className="w-full max-w-4xl grid md:grid-cols-2 gap-12 items-center">
-
-          {/* Left editorial — desktop only */}
+          {/* Left editorial */}
           <div className="hidden md:flex flex-col space-y-8">
             <div className="space-y-4">
               <span className="inline-block px-4 py-1 rounded-full bg-[#ffc3c0] text-[#852327] text-xs font-bold tracking-widest uppercase">
                 Comienza tu viaje
               </span>
               <h1 className="font-headline text-5xl font-extrabold tracking-tight text-on-surface leading-[1.1]">
-                Descubre la energía{' '}
-                <span className="text-primary">cinética</span>{' '}
-                del servicio local.
+                Descubre la energía <span className="text-primary">cinética</span> del servicio local.
               </h1>
               <p className="text-on-surface-variant text-lg leading-relaxed max-w-sm">
                 Conecta con profesionales de primer nivel y gestiona tus reservas con eficiencia.
@@ -236,8 +219,6 @@ export default function Register() {
 
           {/* Form card */}
           <div className="bg-[#ffffff] rounded-xl p-6 sm:p-8 md:p-10 shadow-[0_20px_40px_-10px_rgba(47,47,46,0.06)] border border-[#afadac]/10 w-full">
-
-            {/* Mobile heading — hidden on md+ */}
             <div className="md:hidden text-center mb-6">
               <span className="inline-block px-3 py-1 rounded-full bg-[#ffc3c0] text-[#852327] text-xs font-bold tracking-widest uppercase mb-3">
                 Comienza tu viaje
@@ -253,7 +234,6 @@ export default function Register() {
             </div>
 
             <div className="space-y-5">
-
               {/* Account type toggle */}
               <div className="space-y-2">
                 <label className="block text-xs font-semibold text-on-surface-variant px-1 tracking-widest">
@@ -285,15 +265,6 @@ export default function Register() {
                     Empresa
                   </button>
                 </div>
-                {/* Context hint */}
-                <p className="text-xs text-on-surface-variant px-1 flex items-center gap-1.5">
-                  <span className="material-symbols-outlined" style={{ fontSize: 13 }}>
-                    {accountType === 'business' ? 'storefront' : 'person'}
-                  </span>
-                  {accountType === 'business'
-                    ? 'Podrás publicar y gestionar tus servicios en Zylo.'
-                    : 'Podrás contratar y reservar servicios en Zylo.'}
-                </p>
               </div>
 
               {/* Full name */}
@@ -310,7 +281,22 @@ export default function Register() {
                 </InputWrapper>
               </Field>
 
-              {/* Email & Phone — stacked on mobile, side by side on sm+ */}
+              {/* Conditional Business Name Field */}
+              {accountType === 'business' && (
+                <Field label="NOMBRE DE LA EMPRESA" error={errors.name ? undefined : undefined}>
+                  <InputWrapper icon="storefront">
+                    <input
+                      type="text"
+                      placeholder="Nombre comercial de tu empresa"
+                      value={form.business_name}
+                      onChange={set('business_name')}
+                      className={inputClass(false)}
+                    />
+                  </InputWrapper>
+                </Field>
+              )}
+
+              {/* Email & Phone */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <Field label="CORREO" error={errors.email}>
                   <InputWrapper icon="mail">
@@ -352,10 +338,7 @@ export default function Register() {
                     autoComplete="new-password"
                   />
                 </InputWrapper>
-                {/* Strength indicator */}
-                {form.password.length > 0 && (
-                  <PasswordStrength password={form.password} />
-                )}
+                {form.password.length > 0 && <PasswordStrength password={form.password} />}
               </Field>
 
               {/* Confirm password */}
@@ -385,79 +368,58 @@ export default function Register() {
                 </div>
                 <div>
                   <label htmlFor="terms" className="text-sm text-on-surface-variant leading-tight cursor-pointer">
-                    Acepto los{' '}
-                    <a href="#" className="text-primary font-semibold hover:underline">Términos de Servicio</a>
-                    {' '}y la{' '}
-                    <a href="#" className="text-primary font-semibold hover:underline">Política de Privacidad</a>.
+                    Acepto los <a href="#" className="text-primary font-semibold hover:underline">Términos de Servicio</a> y la <a href="#" className="text-primary font-semibold hover:underline">Política de Privacidad</a>.
                   </label>
-                  {errors.terms && (
-                    <p className="text-xs text-error mt-1">{errors.terms}</p>
-                  )}
+                  {errors.terms && <p className="text-xs text-error mt-1">{errors.terms}</p>}
                 </div>
               </div>
 
-              {/* Alerta de correo duplicado */}
-              {submitStatus === 'duplicate' && duplicateAccountType !== null && (() => {
-                const isTryingBusiness = accountType === 'business'
-                const existingLabel = duplicateAccountType === 'user' ? 'usuario' : 'empresa'
-                const existingIcon = duplicateAccountType === 'user' ? 'person' : 'storefront'
-                const tryingLabel = isTryingBusiness ? 'empresa' : 'usuario'
-                const sameType = duplicateAccountType === accountType
-                return (
-                  <div className="rounded-2xl border border-[#ff785133] bg-[#fff5f2] p-4 flex gap-3">
-                    <span className="material-symbols-outlined text-primary mt-0.5 flex-shrink-0" style={{ fontSize: 20 }}>
-                      warning
-                    </span>
-                    <div className="space-y-1.5">
-                      <p className="text-sm font-bold text-on-surface">
-                        Correo ya en uso
-                      </p>
-                      <p className="text-xs text-on-surface-variant leading-relaxed">
-                        Este correo ya está registrado como{' '}
-                        <span className="inline-flex items-center gap-1 font-bold text-on-surface">
-                          <span className="material-symbols-outlined" style={{ fontSize: 12 }}>{existingIcon}</span>
-                          {existingLabel}
-                        </span>.
-                        {!sameType && (
-                          <> No puedes usarlo para crear una cuenta de <span className="font-bold text-on-surface">{tryingLabel}</span>.</>
-                        )}
-                      </p>
-                      <a
-                        href="/login"
-                        className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline mt-1"
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: 13 }}>login</span>
-                        Iniciar sesión con este correo
-                      </a>
-                    </div>
-                  </div>
-                )
-              })()}
+              {errors.submit && (
+                <div className="rounded-2xl border border-error/20 bg-error/5 p-4 text-xs text-error font-semibold flex gap-2">
+                  <span className="material-symbols-outlined text-sm">error</span>
+                  {errors.submit}
+                </div>
+              )}
 
-              {/* Submit */}
+              {/* Alerta de correo duplicado */}
+              {submitStatus === 'duplicate' && (
+                <div className="rounded-2xl border border-[#ff785133] bg-[#fff5f2] p-4 flex gap-3">
+                  <span className="material-symbols-outlined text-primary mt-0.5 flex-shrink-0" style={{ fontSize: 20 }}>
+                    warning
+                  </span>
+                  <div className="space-y-1.5">
+                    <p className="text-sm font-bold text-on-surface">Correo ya en uso</p>
+                    <p className="text-xs text-on-surface-variant leading-relaxed">
+                      Este correo electrónico ya se encuentra registrado en el sistema.
+                    </p>
+                    <a href="/login" className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline mt-1">
+                      <span className="material-symbols-outlined" style={{ fontSize: 13 }}>login</span>
+                      Iniciar sesión con este correo
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {/* Submit Button */}
               <button
                 onClick={handleSubmit}
-                className="w-full signature-gradient text-white font-headline font-bold py-4 sm:py-5 rounded-full hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-3 shadow-lg shadow-primary/20 text-sm sm:text-base"
+                disabled={submitStatus === 'loading'}
+                className="w-full signature-gradient text-white font-headline font-bold py-4 sm:py-5 rounded-full hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-3 shadow-lg shadow-primary/20 text-sm sm:text-base disabled:opacity-50"
               >
-                <span>Crear Cuenta</span>
-                <span className="material-symbols-outlined text-lg">arrow_forward</span>
+                <span>{submitStatus === 'loading' ? 'Procesando...' : 'Crear Cuenta'}</span>
+                {submitStatus !== 'loading' && <span className="material-symbols-outlined text-lg">arrow_forward</span>}
               </button>
 
               {/* Login link */}
               <div className="text-center pt-1">
                 <p className="text-on-surface-variant text-sm">
-                  ¿Ya tienes cuenta?{' '}
-                  <a href="/login" className="text-primary font-extrabold hover:underline ml-1">
-                    Inicia Sesión
-                  </a>
+                  ¿Ya tienes cuenta? <a href="/login" className="text-primary font-extrabold hover:underline ml-1">Inicia Sesión</a>
                 </p>
               </div>
-
             </div>
           </div>
         </div>
       </main>
-
       <footer className="w-full py-8 text-center text-xs font-label text-outline uppercase tracking-[0.2em]">
         © 2026 Zylo. Todos los derechos reservados.
       </footer>
@@ -465,22 +427,11 @@ export default function Register() {
   )
 }
 
-/* ── Sub-components ── */
-
-function Field({
-  label,
-  error,
-  children,
-}: {
-  label: string
-  error?: string
-  children: React.ReactNode
-}) {
+/* ── Componentes de Soporte Auxiliares Estáticos ── */
+function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <label className="block text-xs font-semibold text-on-surface-variant px-1 tracking-widest">
-        {label}
-      </label>
+      <label className="block text-xs font-semibold text-on-surface-variant px-1 tracking-widest">{label}</label>
       {children}
       {error && (
         <p className="text-xs text-error px-1 flex items-center gap-1">
@@ -492,19 +443,7 @@ function Field({
   )
 }
 
-function InputWrapper({
-  icon,
-  children,
-  showToggle = false,
-  showingPassword = false,
-  onToggle,
-}: {
-  icon: string
-  children: React.ReactNode
-  showToggle?: boolean
-  showingPassword?: boolean
-  onToggle?: () => void
-}) {
+function InputWrapper({ icon, children, showToggle = false, showingPassword = false, onToggle }: { icon: string; children: React.ReactNode; showToggle?: boolean; showingPassword?: boolean; onToggle?: () => void }) {
   return (
     <div className="relative group">
       <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline text-xl transition-colors group-focus-within:text-primary pointer-events-none">
@@ -512,14 +451,8 @@ function InputWrapper({
       </span>
       {children}
       {showToggle && (
-        <button
-          type="button"
-          onClick={onToggle}
-          className="absolute right-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors p-1"
-        >
-          <span className="material-symbols-outlined text-xl">
-            {showingPassword ? 'visibility_off' : 'visibility'}
-          </span>
+        <button type="button" onClick={onToggle} className="absolute right-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors p-1">
+          <span className="material-symbols-outlined text-xl">{showingPassword ? 'visibility_off' : 'visibility'}</span>
         </button>
       )}
     </div>
@@ -530,9 +463,7 @@ function inputClass(hasError: boolean) {
   return [
     'w-full pl-12 pr-4 py-3.5 sm:py-4 bg-[#f3f0ef] border-none rounded-xl',
     'focus:ring-2 transition-all placeholder:text-outline outline-none text-sm sm:text-base',
-    hasError
-      ? 'ring-2 ring-error/40 focus:ring-error/60'
-      : 'focus:ring-[#ff785133]',
+    hasError ? 'ring-2 ring-error/40 focus:ring-error/60' : 'focus:ring-[#ff785133]',
   ].join(' ')
 }
 
@@ -544,25 +475,18 @@ function PasswordStrength({ password }: { password: string }) {
     if (/[A-Z]/.test(p)) score++
     if (/[0-9]/.test(p)) score++
     if (/[^A-Za-z0-9]/.test(p)) score++
-
     if (score <= 1) return { level: 1, label: 'Muy débil', color: '#ef4444' }
     if (score === 2) return { level: 2, label: 'Débil', color: '#f97316' }
     if (score === 3) return { level: 3, label: 'Regular', color: '#eab308' }
     if (score === 4) return { level: 4, label: 'Fuerte', color: '#22c55e' }
     return { level: 5, label: 'Muy fuerte', color: '#16a34a' }
   }
-
   const { level, label, color } = getStrength(password)
-
   return (
     <div className="px-1 mt-1.5 space-y-1">
       <div className="flex gap-1">
         {[1, 2, 3, 4, 5].map(i => (
-          <div
-            key={i}
-            className="flex-1 h-1 rounded-full transition-all duration-300"
-            style={{ background: i <= level ? color : '#e4e2e1' }}
-          />
+          <div key={i} className="flex-1 h-1 rounded-full transition-all duration-300" style={{ background: i <= level ? color : '#e4e2e1' }} />
         ))}
       </div>
       <p className="text-xs font-semibold" style={{ color }}>{label}</p>
