@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import HeaderClose from '../components/HeaderClose'
 
+const API_URL = import.meta.env.VITE_API_URL
+
 type AccountType = 'user' | 'business'
 
 interface FormData {
@@ -10,7 +12,6 @@ interface FormData {
   password: string
   confirmPassword: string
   terms: boolean
-
   business_name: string
   category_id: string
   location: string
@@ -29,7 +30,7 @@ interface FormErrors {
   category_id?: string
   location?: string
   description?: string
-  [key: string]: any // Permite la indexación dinámica segura con llaves de FormData
+  [key: string]: any
 }
 
 type SubmitStatus = 'idle' | 'loading' | 'success' | 'duplicate'
@@ -42,12 +43,12 @@ export default function Register() {
     password: '',
     confirmPassword: '',
     terms: false,
-
     business_name: '',
     category_id: '',
     location: '',
     description: '',
   })
+
   const [accountType, setAccountType] = useState<AccountType>('user')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
@@ -56,21 +57,34 @@ export default function Register() {
 
   const validate = (): boolean => {
     const e: FormErrors = {}
+
     if (!form.name.trim()) e.name = 'El nombre es obligatorio'
+
     if (!form.email.trim()) e.email = 'El correo es obligatorio'
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Correo inválido'
+
     if (!form.phone.trim()) e.phone = 'El teléfono es obligatorio'
+
     if (!form.password) e.password = 'La contraseña es obligatoria'
     else if (form.password.length < 8) e.password = 'Mínimo 8 caracteres'
+
     if (!form.confirmPassword) e.confirmPassword = 'Confirma tu contraseña'
     else if (form.password !== form.confirmPassword) e.confirmPassword = 'Las contraseñas no coinciden'
+
+    if (accountType === 'business' && !form.business_name.trim()) {
+      e.business_name = 'El nombre de la empresa es obligatorio'
+    }
+
     if (!form.terms) e.terms = 'Debes aceptar los términos'
+
     setErrors(e)
     return Object.keys(e).length === 0
   }
 
   const handleSubmit = async () => {
     setSubmitStatus('idle')
+    setErrors({})
+
     if (!validate()) return
 
     setSubmitStatus('loading')
@@ -81,39 +95,69 @@ export default function Register() {
       email: form.email.trim().toLowerCase(),
       password: form.password,
       phone: form.phone.trim(),
-      location: form.location,
-      business_name: accountType === 'business' ? form.business_name.trim() : "",
-      category_id: form.category_id,
-      description: form.description
+      location: form.location.trim(),
+      business_name: accountType === 'business' ? form.business_name.trim() : '',
+      category_id: accountType === 'business' ? form.category_id : '',
+      description: accountType === 'business' ? form.description.trim() : '',
     }
 
     try {
-      const response = await fetch('https://backend-zylo.vercel.app/auth/register', {
+      const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          Accept: 'application/json',
         },
         body: JSON.stringify(requestBody),
       })
 
+      const data = await response.json().catch(() => null)
+
       if (response.ok) {
-        await response.json() // Corregido TS6133: Se procesa la respuesta sin declarar una variable huérfana
-        localStorage.setItem('zylo_session', JSON.stringify({ 
-          email: requestBody.email, 
-          name: requestBody.name, 
-          accountType 
-        }))
+        localStorage.setItem(
+          'zylo_session',
+          JSON.stringify({
+            token: data.token,
+            email: data.user.email,
+            name: data.user.name,
+            accountType: data.user.role === 'business_owner' ? 'business' : 'user',
+            user: data.user,
+          })
+        )
+
         setSubmitStatus('success')
-      } else if (response.status === 400 || response.status === 409) {
-        setErrors(prev => ({ ...prev, email: `Este correo ya se encuentra registrado.` }))
-        setSubmitStatus('duplicate')
-      } else {
-        throw new Error('Error en la respuesta del servidor')
+        return
       }
+
+      if (response.status === 409) {
+        setErrors(prev => ({
+          ...prev,
+          email: 'Este correo ya se encuentra registrado.',
+        }))
+        setSubmitStatus('duplicate')
+        return
+      }
+
+      if (response.status === 400) {
+        setErrors(prev => ({
+          ...prev,
+          submit: data?.detail || 'Datos inválidos. Revisa el formulario.',
+        }))
+        setSubmitStatus('idle')
+        return
+      }
+
+      setErrors(prev => ({
+        ...prev,
+        submit: data?.detail || 'Error en la respuesta del servidor.',
+      }))
+      setSubmitStatus('idle')
     } catch (error) {
       setSubmitStatus('idle')
-      setErrors(prev => ({ ...prev, submit: 'Hubo un problema de conexión con el servidor. Inténtalo más tarde.' }))
+      setErrors(prev => ({
+        ...prev,
+        submit: 'Hubo un problema de conexión con el servidor. Inténtalo más tarde.',
+      }))
     }
   }
 
@@ -158,7 +202,7 @@ export default function Register() {
               </div>
               <div className="flex justify-between items-center pt-1 border-t border-[#e4e2e1]">
                 <span className="text-on-surface-variant font-semibold">Tipo de cuenta</span>
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#fff0eb] text-primary`}>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#fff0eb] text-primary">
                   <span className="material-symbols-outlined" style={{ fontSize: 13 }}>
                     {accountType === 'business' ? 'storefront' : 'person'}
                   </span>
@@ -304,6 +348,7 @@ export default function Register() {
                     />
                   </InputWrapper>
                 </Field>
+
                 <Field label="TELÉFONO" error={errors.phone}>
                   <InputWrapper icon="call">
                     <input
@@ -320,7 +365,12 @@ export default function Register() {
               </div>
 
               <Field label="CONTRASEÑA" error={errors.password}>
-                <InputWrapper icon="lock" onToggle={() => setShowPassword(v => !v)} showToggle showingPassword={showPassword}>
+                <InputWrapper
+                  icon="lock"
+                  onToggle={() => setShowPassword(v => !v)}
+                  showToggle
+                  showingPassword={showPassword}
+                >
                   <input
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Mínimo 8 caracteres"
@@ -334,7 +384,12 @@ export default function Register() {
               </Field>
 
               <Field label="CONFIRMAR CONTRASEÑA" error={errors.confirmPassword}>
-                <InputWrapper icon="enhanced_encryption" onToggle={() => setShowConfirm(v => !v)} showToggle showingPassword={showConfirm}>
+                <InputWrapper
+                  icon="enhanced_encryption"
+                  onToggle={() => setShowConfirm(v => !v)}
+                  showToggle
+                  showingPassword={showConfirm}
+                >
                   <input
                     type={showConfirm ? 'text' : 'password'}
                     placeholder="Repite tu contraseña"
@@ -407,6 +462,7 @@ export default function Register() {
           </div>
         </div>
       </main>
+
       <footer className="w-full py-8 text-center text-xs font-label text-outline uppercase tracking-[0.2em]">
         © 2026 Zylo. Todos los derechos reservados.
       </footer>
@@ -429,7 +485,19 @@ function Field({ label, error, children }: { label: string; error?: string; chil
   )
 }
 
-function InputWrapper({ icon, children, showToggle = false, showingPassword = false, onToggle }: { icon: string; children: React.ReactNode; showToggle?: boolean; showingPassword?: boolean; onToggle?: () => void }) {
+function InputWrapper({
+  icon,
+  children,
+  showToggle = false,
+  showingPassword = false,
+  onToggle,
+}: {
+  icon: string
+  children: React.ReactNode
+  showToggle?: boolean
+  showingPassword?: boolean
+  onToggle?: () => void
+}) {
   return (
     <div className="relative group">
       <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline text-xl transition-colors group-focus-within:text-primary pointer-events-none">
@@ -437,8 +505,14 @@ function InputWrapper({ icon, children, showToggle = false, showingPassword = fa
       </span>
       {children}
       {showToggle && (
-        <button type="button" onClick={onToggle} className="absolute right-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors p-1">
-          <span className="material-symbols-outlined text-xl">{showingPassword ? 'visibility_off' : 'visibility'}</span>
+        <button
+          type="button"
+          onClick={onToggle}
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors p-1"
+        >
+          <span className="material-symbols-outlined text-xl">
+            {showingPassword ? 'visibility_off' : 'visibility'}
+          </span>
         </button>
       )}
     </div>
@@ -467,12 +541,18 @@ function PasswordStrength({ password }: { password: string }) {
     if (score === 4) return { level: 4, label: 'Fuerte', color: '#22c55e' }
     return { level: 5, label: 'Muy fuerte', color: '#16a34a' }
   }
+
   const { level, label, color } = getStrength(password)
+
   return (
     <div className="px-1 mt-1.5 space-y-1">
       <div className="flex gap-1">
         {[1, 2, 3, 4, 5].map(i => (
-          <div key={i} className="flex-1 h-1 rounded-full transition-all duration-300" style={{ background: i <= level ? color : '#e4e2e1' }} />
+          <div
+            key={i}
+            className="flex-1 h-1 rounded-full transition-all duration-300"
+            style={{ background: i <= level ? color : '#e4e2e1' }}
+          />
         ))}
       </div>
       <p className="text-xs font-semibold" style={{ color }}>{label}</p>
