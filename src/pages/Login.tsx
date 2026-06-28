@@ -4,8 +4,7 @@ import HeaderClose from "../components/HeaderClose";
 const API_URL = import.meta.env.VITE_API_URL;
 
 type AccountType = "user" | "business";
-
-type LoginError = "wrong_password" | "wrong_mode" | "not_found" | null;
+type LoginError = "wrong_password" | "wrong_mode" | "not_found" | "server_error" | null;
 
 export default function Login() {
   const [mode, setMode] = useState<AccountType>("user");
@@ -13,16 +12,24 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState<LoginError>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const clearError = () => setLoginError(null);
 
   const handleLogin = async () => {
-    setLoginError(null);
+    clearError();
 
-    if (!email.trim() || !password) {
+    if (!email.trim() || !password.trim()) {
       setLoginError("not_found");
       return;
     }
+
+    if (!API_URL) {
+      setLoginError("server_error");
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
       const response = await fetch(`${API_URL}/auth/login`, {
@@ -37,14 +44,25 @@ export default function Login() {
         }),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(data.detail || "Error al iniciar sesión");
+        if (response.status === 401) {
+          setLoginError("wrong_password");
+          return;
+        }
+
+        setLoginError("server_error");
+        return;
+      }
+
+      if (!data?.token || !data?.user) {
+        setLoginError("server_error");
+        return;
       }
 
       const accountType: AccountType =
-        data.user?.role === "business_owner" ? "business" : "user";
+        data.user.role === "business_owner" ? "business" : "user";
 
       if (accountType !== mode) {
         setLoginError("wrong_mode");
@@ -63,14 +81,11 @@ export default function Login() {
       );
 
       window.location.href = accountType === "business" ? "/BusinessHome" : "/home";
-    } catch (error: any) {
-      const message = error.message?.toLowerCase() || "";
-
-      if (message.includes("invalid email or password")) {
-        setLoginError("wrong_password");
-      } else {
-        setLoginError("not_found");
-      }
+    } catch (error) {
+      console.error("Error al iniciar sesión:", error);
+      setLoginError("server_error");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -134,6 +149,7 @@ export default function Login() {
                 </label>
                 <div className="grid grid-cols-2 p-1.5 bg-[#f3f0ef] rounded-2xl">
                   <button
+                    type="button"
                     onClick={() => {
                       setMode("user");
                       clearError();
@@ -150,6 +166,7 @@ export default function Login() {
                     <span className="whitespace-nowrap">Modo Usuario</span>
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
                       setMode("business");
                       clearError();
@@ -184,6 +201,7 @@ export default function Login() {
                       }}
                       inputMode="email"
                       autoComplete="email"
+                      onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                       className={`w-full bg-[#f3f0ef] border-none rounded-full px-6 py-4 text-on-surface placeholder:text-outline focus:ring-2 transition-all outline-none text-base ${
                         loginError === "not_found" || loginError === "wrong_mode"
                           ? "ring-2 ring-red-300 focus:ring-red-300"
@@ -218,6 +236,7 @@ export default function Login() {
                         clearError();
                       }}
                       autoComplete="current-password"
+                      onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                       className={`w-full bg-[#f3f0ef] border-none rounded-full px-6 py-4 text-on-surface placeholder:text-outline focus:ring-2 transition-all outline-none text-base ${
                         loginError === "wrong_password"
                           ? "ring-2 ring-red-300 focus:ring-red-300"
@@ -237,13 +256,15 @@ export default function Login() {
                 </div>
               </div>
 
-              {loginError && <LoginErrorBanner error={loginError} mode={mode} email={email} />}
+              {loginError && <LoginErrorBanner error={loginError} mode={mode} />}
 
               <button
+                type="button"
                 onClick={handleLogin}
-                className="w-full signature-gradient text-white font-headline font-bold py-5 rounded-full shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all duration-200"
+                disabled={isLoading}
+                className="w-full signature-gradient text-white font-headline font-bold py-5 rounded-full shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Entrar en Zylo
+                {isLoading ? "Entrando..." : "Entrar en Zylo"}
               </button>
 
               <div className="text-center">
@@ -272,34 +293,28 @@ function LoginErrorBanner({
 }: {
   error: NonNullable<LoginError>;
   mode: AccountType;
-  email: string;
 }) {
+  const correctLabel = mode === "business" ? "Modo Usuario" : "Modo Empresa";
+
   const config: Record<
     NonNullable<LoginError>,
     { icon: string; title: string; body: React.ReactNode }
   > = {
     not_found: {
       icon: "person_off",
-      title: "Cuenta no encontrada",
+      title: "Datos incompletos",
       body: (
         <>
-          No existe ninguna cuenta registrada con este correo.{" "}
-          <a href="/register" className="font-bold text-primary hover:underline">
-            Créala aquí
-          </a>
-          .
+          Ingresa tu correo y contraseña para continuar.
         </>
       ),
     },
     wrong_password: {
       icon: "lock_reset",
-      title: "Contraseña incorrecta",
+      title: "Correo o contraseña incorrectos",
       body: (
         <>
-          La contraseña no coincide con la registrada.{" "}
-          <a href="#" className="font-bold text-primary hover:underline">
-            ¿Olvidaste tu contraseña?
-          </a>
+          Verifica tus credenciales e inténtalo nuevamente.
         </>
       ),
     },
@@ -308,9 +323,17 @@ function LoginErrorBanner({
       title: "Modo de sesión incorrecto",
       body: (
         <>
-          Este correo sí existe, pero estás intentando entrar con el tipo de cuenta equivocado.
-          Cambia entre <span className="font-bold text-primary">Modo Usuario</span> y{" "}
-          <span className="font-bold text-primary">Modo Empresa</span>.
+          Esta cuenta pertenece al otro tipo de acceso. Cambia a{" "}
+          <span className="font-bold text-primary">{correctLabel}</span> para entrar.
+        </>
+      ),
+    },
+    server_error: {
+      icon: "wifi_off",
+      title: "No se pudo iniciar sesión",
+      body: (
+        <>
+          Revisa que tu backend esté corriendo, que <span className="font-bold">VITE_API_URL</span> esté bien configurada y que CORS esté habilitado.
         </>
       ),
     },
