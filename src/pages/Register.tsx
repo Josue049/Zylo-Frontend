@@ -87,6 +87,13 @@ export default function Register() {
 
     if (!validate()) return
 
+    if (!API_URL) {
+      setErrors({
+        submit: 'VITE_API_URL no está configurada. Revisa tu archivo .env.',
+      })
+      return
+    }
+
     setSubmitStatus('loading')
 
     const requestBody = {
@@ -97,7 +104,7 @@ export default function Register() {
       phone: form.phone.trim(),
       location: form.location.trim(),
       business_name: accountType === 'business' ? form.business_name.trim() : '',
-      category_id: accountType === 'business' ? form.category_id : '',
+      category_id: accountType === 'business' ? form.category_id.trim() : '',
       description: accountType === 'business' ? form.description.trim() : '',
     }
 
@@ -114,13 +121,16 @@ export default function Register() {
       const data = await response.json().catch(() => null)
 
       if (response.ok) {
+        const savedAccountType: AccountType =
+          data?.user?.role === 'business_owner' ? 'business' : 'user'
+
         localStorage.setItem(
           'zylo_session',
           JSON.stringify({
             token: data.token,
             email: data.user.email,
             name: data.user.name,
-            accountType: data.user.role === 'business_owner' ? 'business' : 'user',
+            accountType: savedAccountType,
             user: data.user,
           })
         )
@@ -153,6 +163,7 @@ export default function Register() {
       }))
       setSubmitStatus('idle')
     } catch (error) {
+      console.error('Register error:', error)
       setSubmitStatus('idle')
       setErrors(prev => ({
         ...prev,
@@ -167,6 +178,7 @@ export default function Register() {
     const value = field === 'terms' ? (e.target as HTMLInputElement).checked : e.target.value
     setForm(prev => ({ ...prev, [field]: value }))
     if (errors[field]) setErrors(prev => ({ ...prev, [field]: undefined }))
+    if (errors.submit) setErrors(prev => ({ ...prev, submit: undefined }))
     if (submitStatus !== 'idle') setSubmitStatus('idle')
   }
 
@@ -321,17 +333,56 @@ export default function Register() {
               </Field>
 
               {accountType === 'business' && (
-                <Field label="NOMBRE DE LA EMPRESA" error={errors.business_name}>
-                  <InputWrapper icon="storefront">
-                    <input
-                      type="text"
-                      placeholder="Nombre comercial de tu empresa"
-                      value={form.business_name}
-                      onChange={set('business_name')}
-                      className={inputClass(!!errors.business_name)}
-                    />
-                  </InputWrapper>
-                </Field>
+                <>
+                  <Field label="NOMBRE DE LA EMPRESA" error={errors.business_name}>
+                    <InputWrapper icon="storefront">
+                      <input
+                        type="text"
+                        placeholder="Nombre comercial de tu empresa"
+                        value={form.business_name}
+                        onChange={set('business_name')}
+                        className={inputClass(!!errors.business_name)}
+                      />
+                    </InputWrapper>
+                  </Field>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <Field label="CATEGORÍA" error={errors.category_id}>
+                      <InputWrapper icon="category">
+                        <input
+                          type="text"
+                          placeholder="Ej. salon"
+                          value={form.category_id}
+                          onChange={set('category_id')}
+                          className={inputClass(!!errors.category_id)}
+                        />
+                      </InputWrapper>
+                    </Field>
+
+                    <Field label="UBICACIÓN" error={errors.location}>
+                      <InputWrapper icon="location_on">
+                        <input
+                          type="text"
+                          placeholder="Ciudad o distrito"
+                          value={form.location}
+                          onChange={set('location')}
+                          className={inputClass(!!errors.location)}
+                        />
+                      </InputWrapper>
+                    </Field>
+                  </div>
+
+                  <Field label="DESCRIPCIÓN" error={errors.description}>
+                    <InputWrapper icon="description">
+                      <textarea
+                        placeholder="Cuéntanos sobre tu negocio"
+                        value={form.description}
+                        onChange={set('description')}
+                        className={`${inputClass(!!errors.description)} min-h-[110px] resize-none pl-12 pt-4`}
+                      />
+                    </InputWrapper>
+                  </Field>
+                </>
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -363,6 +414,20 @@ export default function Register() {
                   </InputWrapper>
                 </Field>
               </div>
+
+              {accountType === 'user' && (
+                <Field label="UBICACIÓN" error={errors.location}>
+                  <InputWrapper icon="location_on">
+                    <input
+                      type="text"
+                      placeholder="Ciudad o distrito"
+                      value={form.location}
+                      onChange={set('location')}
+                      className={inputClass(!!errors.location)}
+                    />
+                  </InputWrapper>
+                </Field>
+              )}
 
               <Field label="CONTRASEÑA" error={errors.password}>
                 <InputWrapper
