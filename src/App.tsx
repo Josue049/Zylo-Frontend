@@ -12,6 +12,8 @@ import Messages from "./pages/Messages";
 import Favorites from "./pages/User/Favorites";
 import BusinessMessages from "./pages/Business/BusinessMessages";
 import Booking from "./pages/Business/Booking";
+import ForgotPassword from './pages/User/ForgotPassword'
+import ResetPassword from './pages/User/ResetPassword'
 
 export default function AppRouter() {
   return (
@@ -27,6 +29,8 @@ export default function AppRouter() {
       <Route path="/favorites" element={<Favorites />} />
       <Route path="/business-messages" element={<BusinessMessages />} />
       <Route path="/booking/:id" element={<Booking />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
     </Routes>
   );
 }

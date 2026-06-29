@@ -220,7 +220,7 @@ export default function Login() {
                       Contraseña
                     </label>
                     <a
-                      href="#"
+                      href="/forgot-password"
                       className="text-right text-xs font-bold text-primary hover:opacity-70 transition-opacity"
                     >
                       ¿Olvidaste tu contraseña?
@@ -303,20 +303,12 @@ function LoginErrorBanner({
     not_found: {
       icon: "person_off",
       title: "Datos incompletos",
-      body: (
-        <>
-          Ingresa tu correo y contraseña para continuar.
-        </>
-      ),
+      body: <>Ingresa tu correo y contraseña para continuar.</>,
     },
     wrong_password: {
       icon: "lock_reset",
       title: "Correo o contraseña incorrectos",
-      body: (
-        <>
-          Verifica tus credenciales e inténtalo nuevamente.
-        </>
-      ),
+      body: <>Verifica tus credenciales e inténtalo nuevamente.</>,
     },
     wrong_mode: {
       icon: "swap_horiz",
@@ -333,7 +325,8 @@ function LoginErrorBanner({
       title: "No se pudo iniciar sesión",
       body: (
         <>
-          Revisa que tu backend esté corriendo, que <span className="font-bold">VITE_API_URL</span> esté bien configurada y que CORS esté habilitado.
+          Revisa que tu backend esté corriendo, que{" "}
+          <span className="font-bold">VITE_API_URL</span> esté bien configurada y que CORS esté habilitado.
         </>
       ),
     },
