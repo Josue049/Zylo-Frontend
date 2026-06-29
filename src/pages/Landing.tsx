@@ -6,6 +6,7 @@ import Business from '../components/Business'
 import WhyZylo from '../components/WhyZylo'
 import Footer from '../components/Footer'
 import './Landing.css'
+import AvailabilityManager from "../components/business/AvailabilityManager";
 
 export default function Landing() {
   return (
@@ -16,6 +17,7 @@ export default function Landing() {
       <HowItWorks />
       <Business />
       <WhyZylo />
+      <AvailabilityManager />
       <Footer />
     </div>
   )
