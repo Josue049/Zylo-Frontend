@@ -1,14 +1,53 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import HeaderBusiness from "../../components/user/HeaderUser";
-import { businesses } from "../../data/businesses";
+import HeaderUser from "../../components/user/HeaderUser";
 import { getSession, getOrCreateConversation } from "../../data/messages";
 
 const API_BASE = "https://backend-zylo.vercel.app";
 
+interface Business {
+  id: string;
+  owner_user_id: string;
+  name: string;
+  category_id: string;
+  category_name: string;
+  description: string;
+  phone: string;
+  email: string;
+  address: string;
+  city: string;
+  featured: boolean;
+  availability_status: boolean;
+  rating: number;
+  reviews_count: number;
+  image_url: string;
+  weekly_hours: Record<string, string[]>;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Service {
+  id: string;
+  business_id: string;
+  name: string;
+  description: string;
+  duration_minutes: number;
+  price: number;
+  active: boolean;
+}
+
+interface TeamMember {
+  id: string;
+  name: string;
+  role: string;
+  image?: string;
+}
+
 function getToken() {
   const session = localStorage.getItem("zylo_session");
+
   if (!session) return null;
+
   try {
     return JSON.parse(session).token;
   } catch {
@@ -18,6 +57,7 @@ function getToken() {
 
 async function authFetch(url: string, options: RequestInit = {}) {
   const token = getToken();
+
   if (!token) {
     throw new Error("NO_TOKEN");
   }
@@ -35,143 +75,112 @@ async function authFetch(url: string, options: RequestInit = {}) {
 export default function BusinessProfile() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
+  const [business, setBusiness] = useState<Business | null>(null);
+  const [services, setServices] = useState<Service[]>([]);
+  const [gallery, setGallery] = useState<string[]>([]);
+  const [team, setTeam] = useState<TeamMember[]>([]);
+
+  const [loading, setLoading] = useState(true);
+
   const [isFavorite, setIsFavorite] = useState(false);
   const [loadingFavorite, setLoadingFavorite] = useState(false);
 
-  const business = businesses.find((b) => b.id === Number(id));
-
   useEffect(() => {
+    async function loadBusiness() {
+      try {
+        setLoading(true);
+
+        const [
+          businessResponse,
+          servicesResponse,
+          galleryResponse,
+          teamResponse,
+        ] = await Promise.all([
+          fetch(`${API_BASE}/businesses/${id}`),
+          fetch(`${API_BASE}/businesses/${id}/services`),
+          fetch(`${API_BASE}/businesses/${id}/gallery`),
+          fetch(`${API_BASE}/businesses/${id}/team`),
+        ]);
+
+        if (!businessResponse.ok) {
+          throw new Error("Business not found");
+        }
+
+        const businessData = await businessResponse.json();
+        const servicesData = await servicesResponse.json();
+        const galleryData = await galleryResponse.json();
+        const teamData = await teamResponse.json();
+
+        setBusiness(businessData.business);
+        setServices(servicesData.items ?? []);
+        setGallery(galleryData.items ?? []);
+        setTeam(teamData.items ?? []);
+      } catch (err) {
+        console.error(err);
+        setBusiness(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadBusiness();
+  }, [id]);
+    useEffect(() => {
     if (!business) return;
 
-    const loadFavorite = async () => {
+    async function loadFavorite() {
       const token = getToken();
-      if (!token) {
-        console.log("No token found, skipping favorites load");
-        setLoadingFavorite(false);
-        return;
-      }
+
+      if (!token) return;
 
       try {
         setLoadingFavorite(true);
-        console.log("Loading favorites for business:", business.id);
 
-        const response = await authFetch(`${API_BASE}/users/me/favorites`);
-
-        if (response.status === 401) {
-          localStorage.removeItem("zylo_session");
-          navigate("/login");
-          return;
-        }
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log("Favorites response:", data);
-
-        const favorites = Array.isArray(data?.items) ? data.items : [];
-        console.log("Favorites list:", favorites);
-        console.log(
-          "Business ID to match:",
-          business.id,
-          "Type:",
-          typeof business.id,
+        const response = await authFetch(
+          `${API_BASE}/users/me/favorites`
         );
 
-        const isFav = favorites.some((fav: any) => {
-          console.log(
-            "Comparing:",
-            fav.id,
-            "with",
-            business.id,
-            "Match:",
-            String(fav.id) === String(business.id),
-          );
-          return String(fav.id) === String(business.id);
-        });
+        if (!response.ok) return;
 
-        console.log("Is favorite:", isFav);
-        setIsFavorite(isFav);
+        const data = await response.json();
+
+        const favorites = Array.isArray(data.items)
+          ? data.items
+          : [];
+
+        setIsFavorite(
+          favorites.some(
+            (fav: any) => String(fav.id) === String(business.id)
+          )
+        );
       } catch (err) {
-        console.error("Error loading favorites:", err);
-        setIsFavorite(false);
+        console.error(err);
       } finally {
         setLoadingFavorite(false);
       }
-    };
+    }
 
     loadFavorite();
-  }, [business, navigate]);
-
-  const handleMessage = () => {
-    if (!business) return;
-    const session = getSession();
-    if (!session) {
-      navigate("/login");
-      return;
-    }
-    const conv = getOrCreateConversation(
-      session.email,
-      session.name,
-      undefined,
-      business.email,
-      business.name,
-      business.category,
-      business.image,
-    );
-    navigate(`/messages?conv=${conv.id}`);
-  };
-
-  if (!business) {
-    return (
-      <div className="bg-[#f9f6f5] min-h-screen flex flex-col items-center justify-center gap-4">
-        <p className="text-xl font-bold text-[#2f2f2e]">
-          Negocio no encontrado.
-        </p>
-        <button
-          onClick={() => navigate("/")}
-          className="bg-gradient-to-br from-[#ab2d00] to-[#ff7851] text-white px-8 py-3 rounded-full font-bold"
-        >
-          Volver al inicio
-        </button>
-      </div>
-    );
-  }
-
-  async function toggleFavorite() {
+  }, [business]);
+    async function toggleFavorite() {
     if (!business) return;
 
     try {
       setLoadingFavorite(true);
 
-      if (isFavorite) {
-        const response = await authFetch(
-          `${API_BASE}/users/me/favorites/${business.id}`,
-          {
-            method: "DELETE",
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error("No se pudo eliminar");
+      const response = await authFetch(
+        `${API_BASE}/users/me/favorites/${business.id}`,
+        {
+          method: isFavorite ? "DELETE" : "POST",
         }
+      );
 
-        setIsFavorite(false);
-      } else {
-        const response = await authFetch(
-          `${API_BASE}/users/me/favorites/${business.id}`,
-          {
-            method: "POST",
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error("No se pudo agregar");
-        }
-
-        setIsFavorite(true);
+      if (!response.ok) {
+        throw new Error();
       }
+
+      setIsFavorite(!isFavorite);
     } catch (err) {
       console.error(err);
     } finally {
@@ -179,261 +188,568 @@ export default function BusinessProfile() {
     }
   }
 
-  return (
-    <div className="bg-[#f9f6f5] text-[#2f2f2e] font-['Inter'] min-h-screen pb-32">
-      <HeaderBusiness />
+  const handleMessage = () => {
+    if (!business) return;
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
-        {/* --- Galería Bento --- */}
-        <section className="grid grid-cols-1 md:grid-cols-4 gap-4 h-[400px] md:h-[500px]">
-          <div className="md:col-span-2 md:row-span-2 rounded-xl overflow-hidden relative group">
-            <img
-              src={business.gallery[0]}
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-              alt="Principal"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
-          </div>
-          <div className="hidden md:block md:col-span-2 rounded-xl overflow-hidden group">
-            <img
-              src={business.gallery[1]}
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-              alt="Interior"
-            />
-          </div>
-          <div className="hidden md:block rounded-xl overflow-hidden group">
-            <img
-              src={business.gallery[2]}
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-              alt="Detalle"
-            />
-          </div>
-          <div className="hidden md:block rounded-xl overflow-hidden group">
-            <img
-              src={business.gallery[3]}
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-              alt="Extra"
-            />
-          </div>
-        </section>
+    const session = getSession();
 
-        {/* --- Info principal --- */}
-        <section className="mt-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="px-3 py-1 rounded-full bg-[#ff7851]/20 text-[#ab2d00] font-bold text-xs uppercase tracking-wider">
-                {business.category}
-              </span>
-              <div className="flex items-center text-[#ab2d00]">
-                <span
-                  className="material-symbols-outlined text-sm"
-                  style={{ fontVariationSettings: "'FILL' 1" }}
-                >
-                  star
-                </span>
-                <span className="text-sm font-bold ml-1">
-                  {business.rating} ({Math.floor(business.rating * 25)} Reseñas)
-                </span>
-              </div>
-            </div>
-            <h1 className="font-['Plus_Jakarta_Sans'] text-4xl md:text-5xl font-extrabold tracking-tight">
-              {business.name}
-            </h1>
-            <div className="flex items-center gap-2 text-[#5c5b5b]">
-              <span className="material-symbols-outlined text-lg">
-                location_on
-              </span>
-              <span className="font-medium">{business.address}</span>
-            </div>
-          </div>
+    if (!session) {
+      navigate("/login");
+      return;
+    }
 
-          <div className="flex gap-3">
-            <button
-              onClick={toggleFavorite}
-              disabled={loadingFavorite}
-              className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 border-2 disabled:opacity-60 disabled:cursor-not-allowed ${
-                isFavorite
-                  ? "bg-[#ff7851]/10 border-[#ab2d00] text-[#ab2d00]"
-                  : "bg-[#dfdcdc] border-transparent text-[#2f2f2e] hover:border-[#ab2d00] hover:text-[#ab2d00]"
-              }`}
-              title={isFavorite ? "Quitar de favoritos" : "Agregar a favoritos"}
-            >
+    const conversation = getOrCreateConversation(
+      session.email,
+      session.name,
+      undefined,
+      business.email,
+      business.name,
+      business.category_name,
+      business.image_url
+    );
+
+    navigate(`/messages?conv=${conversation.id}`);
+  };
+    if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Cargando negocio...
+      </div>
+    );
+  }
+
+  if (!business) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Negocio no encontrado.
+      </div>
+    );
+  }
+
+return (
+  <div className="bg-[#f9f6f5] text-[#2f2f2e] font-['Inter'] min-h-screen pb-32">
+    <HeaderUser />
+
+    <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+
+      {/* Galería */}
+      <section className="grid grid-cols-1 md:grid-cols-4 gap-4 h-[400px] md:h-[500px]">
+
+        <div className="md:col-span-2 md:row-span-2 rounded-xl overflow-hidden relative group">
+          <img
+            src={gallery[0] || business.image_url}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            alt={business.name}
+          />
+
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+        </div>
+
+        <div className="hidden md:block md:col-span-2 rounded-xl overflow-hidden group">
+          <img
+            src={gallery[1] || business.image_url}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            alt={business.name}
+          />
+        </div>
+
+        <div className="hidden md:block rounded-xl overflow-hidden group">
+          <img
+            src={gallery[2] || business.image_url}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            alt={business.name}
+          />
+        </div>
+
+        <div className="hidden md:block rounded-xl overflow-hidden group">
+          <img
+            src={gallery[3] || business.image_url}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            alt={business.name}
+          />
+        </div>
+
+      </section>
+
+      {/* Información principal */}
+
+      <section className="mt-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
+
+        <div className="space-y-2">
+
+          <div className="flex items-center gap-2">
+
+            <span className="px-3 py-1 rounded-full bg-[#ff7851]/20 text-[#ab2d00] font-bold text-xs uppercase tracking-wider">
+              {business.category_name}
+            </span>
+
+            <div className="flex items-center text-[#ab2d00]">
+
               <span
-                className="material-symbols-outlined text-2xl"
+                className="material-symbols-outlined text-sm"
                 style={{
-                  fontVariationSettings: isFavorite ? "'FILL' 1" : "'FILL' 0",
+                  fontVariationSettings: "'FILL' 1",
                 }}
               >
-                favorite
+                star
               </span>
-            </button>
-            <button
-              onClick={handleMessage}
-              className="bg-[#dfdcdc] text-[#2f2f2e] px-8 py-4 rounded-full font-bold active:scale-95 transition-all"
-            >
-              Mensaje
-            </button>
-            <button
-              onClick={() =>
-                navigate(`/booking/${business.id}`, {
-                  state: {
-                    business: {
-                      id: business.id,
-                      name: business.name,
-                      image: business.image,
-                      imageAlt: business.name,
-                      category: business.category,
-                      distance: "Lima, Perú",
-                      rating: business.rating,
-                      availability: "",
-                      available: true,
-                      bookingTitle: business.services[0]?.title ?? "Servicio",
-                      duration: "60 min",
-                      price: parseFloat(
-                        business.services[0]?.price?.replace(/[^0-9.]/g, "") ??
-                          "0",
-                      ),
-                    },
-                  },
-                })
-              }
-              className="bg-gradient-to-br from-[#ab2d00] to-[#ff7851] text-white px-8 py-4 rounded-full font-bold shadow-lg shadow-[#ab2d00]/20 active:scale-95 transition-all"
-            >
-              Reservar
-            </button>
+
+              <span className="text-sm font-bold ml-1">
+                {business.rating.toFixed(1)}
+              </span>
+
+              <span className="text-sm text-[#5c5b5b] ml-2">
+                ({business.reviews_count} reseñas)
+              </span>
+
+            </div>
+
           </div>
-        </section>
 
-        {/* --- Contenido principal --- */}
-        <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-12">
-          <div className="lg:col-span-2 space-y-12">
-            <section>
-              <h2 className="font-['Plus_Jakarta_Sans'] text-2xl font-bold mb-4">
-                Acerca de
+          <h1 className="font-['Plus_Jakarta_Sans'] text-4xl md:text-5xl font-extrabold tracking-tight">
+            {business.name}
+          </h1>
+
+          <div className="flex items-center gap-2 text-[#5c5b5b]">
+
+            <span className="material-symbols-outlined">
+              location_on
+            </span>
+
+            <span className="font-medium">
+              {business.address}
+            </span>
+
+          </div>
+
+        </div>
+
+        <div className="flex gap-3">
+
+          <button
+            onClick={toggleFavorite}
+            disabled={loadingFavorite}
+            className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 border-2 disabled:opacity-60 ${
+              isFavorite
+                ? "bg-[#ff7851]/10 border-[#ab2d00] text-[#ab2d00]"
+                : "bg-[#dfdcdc] border-transparent text-[#2f2f2e]"
+            }`}
+          >
+
+            <span
+              className="material-symbols-outlined text-2xl"
+              style={{
+                fontVariationSettings: isFavorite
+                  ? "'FILL' 1"
+                  : "'FILL' 0",
+              }}
+            >
+              favorite
+            </span>
+
+          </button>
+
+          <button
+            onClick={handleMessage}
+            className="bg-[#dfdcdc] text-[#2f2f2e] px-8 py-4 rounded-full font-bold"
+          >
+            Mensaje
+          </button>
+
+          <button
+            onClick={() =>
+              navigate(`/booking/${business.id}`, {
+                state: {
+                  business: {
+                    id: business.id,
+                    name: business.name,
+                    image: business.image_url,
+                    imageAlt: business.name,
+                    category: business.category_name,
+                    rating: business.rating,
+                    available: business.availability_status,
+                    availability: business.availability_status
+                      ? "Disponible"
+                      : "No disponible",
+                    bookingTitle:
+                      services.length > 0
+                        ? services[0].name
+                        : "Servicio",
+                    duration:
+                      services.length > 0
+                        ? `${services[0].duration_minutes} min`
+                        : "",
+                    price:
+                      services.length > 0
+                        ? services[0].price
+                        : 0,
+                  },
+                },
+              })
+            }
+            className="bg-gradient-to-br from-[#ab2d00] to-[#ff7851] text-white px-8 py-4 rounded-full font-bold shadow-lg"
+          >
+            Reservar
+          </button>
+
+        </div>
+
+      </section>
+
+      <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-12">
+
+        <div className="lg:col-span-2 space-y-12">
+
+          <section>
+
+            <h2 className="font-['Plus_Jakarta_Sans'] text-2xl font-bold mb-4">
+              Acerca de
+            </h2>
+
+            <p className="text-[#5c5b5b] leading-relaxed text-lg">
+              {business.description}
+            </p>
+
+          </section>
+                    {/* ---------------- SERVICIOS ---------------- */}
+
+          <section>
+
+            <div className="flex justify-between items-center mb-6">
+
+              <h2 className="font-['Plus_Jakarta_Sans'] text-2xl font-bold">
+                Nuestros Servicios
               </h2>
-              <p className="text-[#5c5b5b] leading-relaxed text-lg">
-                {business.description}
-              </p>
-            </section>
 
-            <section>
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="font-['Plus_Jakarta_Sans'] text-2xl font-bold">
-                  Nuestros Servicios
-                </h2>
-                <button className="text-[#ab2d00] font-bold text-sm hover:underline">
-                  Ver todos
-                </button>
+              <span className="text-sm text-[#5c5b5b]">
+                {services.length} servicio(s)
+              </span>
+
+            </div>
+
+            {services.length === 0 ? (
+
+              <div className="bg-white rounded-xl p-6 text-center text-[#5c5b5b]">
+                Este negocio todavía no tiene servicios registrados.
               </div>
+
+            ) : (
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {business.services.map((service) => (
+
+                {services.map((service) => (
+
                   <div
                     key={service.id}
-                    className={`bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer group ${service.featured ? "border-l-4 border-[#ab2d00]" : ""}`}
+                    className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all"
                   >
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="w-12 h-12 bg-[#ff7851]/10 rounded-full flex items-center justify-center text-[#ab2d00]">
-                        <span className="material-symbols-outlined">
-                          {service.icon}
+
+                    <div className="flex justify-between items-center mb-4">
+
+                      <div className="w-12 h-12 rounded-full bg-[#ff7851]/10 flex items-center justify-center">
+
+                        <span className="material-symbols-outlined text-[#ab2d00]">
+                          content_cut
                         </span>
+
                       </div>
-                      <span className="font-['Plus_Jakarta_Sans'] font-extrabold text-xl text-[#ab2d00]">
-                        {service.price}
+
+                      <span className="font-bold text-xl text-[#ab2d00]">
+                        S/. {service.price}
                       </span>
+
                     </div>
-                    <h3 className="font-bold text-lg mb-1 group-hover:text-[#ab2d00] transition-colors">
-                      {service.title}
+
+                    <h3 className="font-bold text-lg mb-2">
+                      {service.name}
                     </h3>
-                    <p className="text-[#5c5b5b] text-sm line-clamp-2">
+
+                    <p className="text-sm text-[#5c5b5b] mb-4">
                       {service.description}
                     </p>
-                  </div>
-                ))}
-              </div>
-            </section>
 
-            <section>
-              <h2 className="font-['Plus_Jakarta_Sans'] text-2xl font-bold mb-6">
-                Conoce al Equipo
-              </h2>
-              <div className="flex gap-6 overflow-x-auto pb-4 no-scrollbar">
-                {business.team.map((member) => (
-                  <div key={member.id} className="flex-shrink-0 w-32 group">
-                    <div className="w-32 h-32 rounded-xl overflow-hidden mb-3 grayscale group-hover:grayscale-0 transition-all duration-300">
-                      <img
-                        src={member.image}
-                        alt={member.name}
-                        className="w-full h-full object-cover"
-                      />
+                    <div className="flex justify-between items-center">
+
+                      <span className="text-sm text-[#5c5b5b]">
+                        ⏱ {service.duration_minutes} min
+                      </span>
+
+                      <span
+                        className={`text-xs px-3 py-1 rounded-full ${
+                          service.active
+                            ? "bg-green-100 text-green-700"
+                            : "bg-gray-200 text-gray-500"
+                        }`}
+                      >
+                        {service.active ? "Disponible" : "Inactivo"}
+                      </span>
+
                     </div>
+
+                  </div>
+
+                ))}
+
+              </div>
+
+            )}
+
+          </section>
+
+          {/* ---------------- EQUIPO ---------------- */}
+
+          <section>
+
+            <h2 className="font-['Plus_Jakarta_Sans'] text-2xl font-bold mb-6">
+              Conoce al Equipo
+            </h2>
+
+            {team.length === 0 ? (
+
+              <div className="bg-white rounded-xl p-6 text-center text-[#5c5b5b]">
+                Este negocio aún no ha registrado profesionales.
+              </div>
+
+            ) : (
+
+              <div className="flex gap-6 overflow-x-auto pb-4 no-scrollbar">
+
+                {team.map((member) => (
+
+                  <div
+                    key={member.id}
+                    className="flex-shrink-0 w-32 group"
+                  >
+
+                    <div className="w-32 h-32 rounded-xl overflow-hidden mb-3 bg-gray-200">
+
+                      <img
+                        src={
+                          member.image ||
+                          "https://placehold.co/300x300?text=Profesional"
+                        }
+                        alt={member.name}
+                        className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all"
+                      />
+
+                    </div>
+
                     <p className="text-sm font-bold text-center">
                       {member.name}
                     </p>
-                    <p className="text-xs text-[#5c5b5b] text-center">
+
+                    <p className="text-xs text-center text-[#5c5b5b]">
                       {member.role}
                     </p>
+
                   </div>
+
                 ))}
+
               </div>
-            </section>
+
+            )}
+
+          </section>
+
+        </div>
+                {/* ---------------- SIDEBAR ---------------- */}
+
+        <aside className="space-y-8">
+
+          <div className="bg-[#f3f0ef] p-8 rounded-xl space-y-8">
+
+            {/* Horarios */}
+
+            <div>
+
+              <h3 className="font-bold mb-4 flex items-center gap-2">
+
+                <span className="material-symbols-outlined text-[#ab2d00]">
+                  schedule
+                </span>
+
+                Horario de Atención
+
+              </h3>
+
+              <div className="space-y-3 text-sm">
+
+                {[
+                  ["monday", "Lunes"],
+                  ["tuesday", "Martes"],
+                  ["wednesday", "Miércoles"],
+                  ["thursday", "Jueves"],
+                  ["friday", "Viernes"],
+                  ["saturday", "Sábado"],
+                  ["sunday", "Domingo"],
+                ].map(([key, label]) => {
+
+                  const value = business.weekly_hours?.[key];
+
+                  return (
+
+                    <div
+                      key={key}
+                      className="flex justify-between items-center"
+                    >
+
+                      <span>{label}</span>
+
+                      <span className="font-semibold">
+
+                        {value && value.length > 0
+                          ? value.join(" - ")
+                          : "Cerrado"}
+
+                      </span>
+
+                    </div>
+
+                  );
+
+                })}
+
+              </div>
+
+            </div>
+
+            {/* Contacto */}
+
+            <div className="border-t border-[#dfdcdc] pt-6">
+
+              <h3 className="font-bold mb-4 flex items-center gap-2">
+
+                <span className="material-symbols-outlined text-[#ab2d00]">
+                  call
+                </span>
+
+                Contacto
+
+              </h3>
+
+              <div className="space-y-3">
+
+                <div className="flex gap-3">
+
+                  <span className="material-symbols-outlined text-[#ab2d00]">
+                    call
+                  </span>
+
+                  <span>{business.phone}</span>
+
+                </div>
+
+                <div className="flex gap-3">
+
+                  <span className="material-symbols-outlined text-[#ab2d00]">
+                    mail
+                  </span>
+
+                  <span>{business.email}</span>
+
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* Dirección */}
+
+            <div className="border-t border-[#dfdcdc] pt-6">
+
+              <h3 className="font-bold mb-4 flex items-center gap-2">
+
+                <span className="material-symbols-outlined text-[#ab2d00]">
+                  location_on
+                </span>
+
+                Ubicación
+
+              </h3>
+
+              <div className="flex gap-3">
+
+                <span
+                  className="material-symbols-outlined text-[#ab2d00]"
+                  style={{
+                    fontVariationSettings: "'FILL' 1",
+                  }}
+                >
+                  location_on
+                </span>
+
+                <div>
+
+                  <p className="font-semibold">
+
+                    {business.address}
+
+                  </p>
+
+                  <p className="text-sm text-[#5c5b5b]">
+
+                    {business.city}
+
+                  </p>
+
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* Información */}
+
+            <div className="border-t border-[#dfdcdc] pt-6">
+
+              <div className="flex justify-between mb-3">
+
+                <span>Servicios</span>
+
+                <span className="font-bold">
+
+                  {services.length}
+
+                </span>
+
+              </div>
+
+              <div className="flex justify-between mb-3">
+
+                <span>Profesionales</span>
+
+                <span className="font-bold">
+
+                  {team.length}
+
+                </span>
+
+              </div>
+
+              <div className="flex justify-between">
+
+                <span>Reseñas</span>
+
+                <span className="font-bold">
+
+                  {business.reviews_count}
+
+                </span>
+
+              </div>
+
+            </div>
+
           </div>
 
-          <aside className="space-y-8">
-            <div className="bg-[#f3f0ef] p-8 rounded-xl space-y-6">
-              <div>
-                <h3 className="font-bold mb-4 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#ab2d00]">
-                    schedule
-                  </span>{" "}
-                  Horario de Atención
-                </h3>
-                <ul className="space-y-2 text-sm">
-                  <li className="flex justify-between">
-                    <span>Lun — Vie</span>
-                    <span className="font-semibold">
-                      {business.hours.weekdays}
-                    </span>
-                  </li>
-                  <li className="flex justify-between">
-                    <span>Sáb</span>
-                    <span className="font-semibold">
-                      {business.hours.saturday}
-                    </span>
-                  </li>
-                  <li
-                    className={`flex justify-between font-medium ${business.hours.sunday === "Cerrado" ? "text-red-600" : ""}`}
-                  >
-                    <span>Dom</span>
-                    <span>{business.hours.sunday}</span>
-                  </li>
-                </ul>
-              </div>
-              <div className="pt-6 border-t border-[#dfdcdc]">
-                <h3 className="font-bold mb-4 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#ab2d00]">
-                    location_on
-                  </span>{" "}
-                  Ubicación
-                </h3>
-                <div className="flex items-start gap-3">
-                  <span
-                    className="material-symbols-outlined text-[#ab2d00] mt-0.5"
-                    style={{ fontVariationSettings: "'FILL' 1" }}
-                  >
-                    location_on
-                  </span>
-                  <div>
-                    <p className="text-sm text-[#2f2f2e] font-semibold">
-                      {business.address}
-                    </p>
-                    <p className="text-xs text-[#5c5b5b] mt-1">Lima, Perú</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </aside>
-        </div>
-      </main>
-    </div>
-  );
+        </aside>
+
+      </div>
+
+    </main>
+
+  </div>
+
+);
 }
