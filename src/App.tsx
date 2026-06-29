@@ -5,7 +5,7 @@ import "./App.css";
 import "./index.css";
 import Register from "./pages/Register";
 import Home from "./pages/User/Home";
-import Profile from "./pages/User/Profile";
+import Profile from "./pages/User/UserProfile";
 import BusinessProfile from "./pages/Business/BusinessProfile";
 import BusinessHome from "./pages/Business/BusinessHome";
 import Messages from "./pages/Messages";

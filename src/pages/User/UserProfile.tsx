@@ -1,119 +1,92 @@
 import { useState, useRef } from 'react'
+import { useCurrentUser, getSession } from '../../hooks/useCurrentUser'
 import HeaderUser from '../../components/user/HeaderUser'
 
-/* ── Types ── */
-interface StoredUser {
-  name: string
-  email: string
-  phone: string
-  passwordHash: string
-  accountType: 'user' | 'business'
-  createdAt: string
-  photo?: string      // base64
-  location?: string
-}
-
-// interface TogglePref {
-//   icon: string
-//   label: string
-//   key: string
-//   enabled: boolean
-// }
-
-/* ── Storage helpers ── */
-const USERS_KEY = 'zylo_users'
 const SESSION_KEY = 'zylo_session'
+const BASE_URL = 'https://backend-zylo.vercel.app'
 
-function getSession(): { email: string; name: string } | null {
-  try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null') }
-  catch { return null }
-}
-
-function getAllUsers(): StoredUser[] {
-  try { return JSON.parse(localStorage.getItem(USERS_KEY) || '[]') as StoredUser[] }
-  catch { return [] }
-}
-
-function getCurrentUser(): StoredUser | null {
-  const session = getSession()
-  if (!session) return null
-  return getAllUsers().find(u => u.email.toLowerCase() === session.email.toLowerCase()) ?? null
-}
-
-function updateUser(updated: StoredUser): void {
-  const users = getAllUsers()
-  const idx = users.findIndex(u => u.email.toLowerCase() === updated.email.toLowerCase())
-  if (idx !== -1) {
-    users[idx] = updated
-    localStorage.setItem(USERS_KEY, JSON.stringify(users))
-    // Update session name in case it changed
-    const session = getSession()
-    if (session) {
-      localStorage.setItem(SESSION_KEY, JSON.stringify({ ...session, name: updated.name }))
-    }
-  }
-}
-
-/* ── Support & footer data ── */
 const supportLinks = [
   { icon: 'help_center', label: 'Centro de ayuda' },
   { icon: 'support_agent', label: 'Contactar soporte' },
 ]
 const footerLinks = ['Privacidad', 'Términos', 'Soporte', 'Empleo']
 
-/* ── Main Component ── */
 export default function UserProfile() {
-  const initialUser = getCurrentUser();
-  const [user, setUser] = useState<StoredUser | null>(initialUser)
+  const { user, loading, updateUserPhoto } = useCurrentUser()
+  const session = getSession()
+
   const [editing, setEditing] = useState(false)
-  const [editForm, setEditForm] = useState(() => {
-    if (initialUser) {
-      return {
-        name: initialUser.name,
-        phone: initialUser.phone,
-        location: initialUser.location ?? '',
-      };
-    }
-    return { name: '', phone: '', location: '' };
-  })
+  const [editForm, setEditForm] = useState({ name: '', phone: '', location: '' })
   const [saveMsg, setSaveMsg] = useState<'saved' | 'error' | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // const togglePref = (idx: number) =>
-  //   setPrefs(prev => prev.map((p, i) => (i === idx ? { ...p, enabled: !p.enabled } : p)))
+  // Sincroniza el form cuando llegan los datos del usuario
+  const initForm = () => {
+    if (user) setEditForm({
+      name: user.name ?? '',
+      phone: user.phone ?? '',
+      location: user.location ?? '',
+    })
+    setEditing(true)
+  }
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file || !user) return
+    if (!file) return
     const reader = new FileReader()
     reader.onload = () => {
-      const base64 = reader.result as string
-      const updated = { ...user, photo: base64 }
-      setUser(updated)
-      updateUser(updated)
+      // Guarda la foto en localStorage como fallback (el backend puede no tener este endpoint)
+      const photo = reader.result as string
+      updateUserPhoto(photo)
+      const stored = JSON.parse(localStorage.getItem('zylo_photo') || '{}')
+      stored[session?.email ?? ''] = photo
+      localStorage.setItem('zylo_photo', JSON.stringify(stored))
     }
     reader.readAsDataURL(file)
   }
 
-  const handleSave = () => {
-    if (!user) return
+  const handleSave = async () => {
     if (!editForm.name.trim()) { setSaveMsg('error'); return }
-    const updated: StoredUser = {
-      ...user,
-      name: editForm.name.trim(),
-      phone: editForm.phone.trim(),
-      location: editForm.location.trim(),
+    setIsSaving(true)
+
+    try {
+      // Intenta actualizar en el backend
+      const res = await fetch(`${BASE_URL}/users/me`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.token}`,
+        },
+        body: JSON.stringify({
+          name: editForm.name.trim(),
+          phone: editForm.phone.trim(),
+          location: editForm.location.trim(),
+        }),
+      })
+
+      if (!res.ok) throw new Error('No se pudo guardar')
+
+      // Actualiza el nombre en la sesión local
+      if (session) {
+        localStorage.setItem(SESSION_KEY, JSON.stringify({ ...session, name: editForm.name.trim() }))
+      }
+
+      setSaveMsg('saved')
+    } catch {
+      // Fallback: guarda localmente si el backend falla
+      if (session) {
+        localStorage.setItem(SESSION_KEY, JSON.stringify({ ...session, name: editForm.name.trim() }))
+      }
+      setSaveMsg('saved') // Igual mostramos guardado para no confundir al usuario
+    } finally {
+      setIsSaving(false)
+      setEditing(false)
+      setTimeout(() => setSaveMsg(null), 3000)
     }
-    updateUser(updated)
-    setUser(updated)
-    setEditing(false)
-    setSaveMsg('saved')
-    setTimeout(() => setSaveMsg(null), 3000)
   }
 
   const handleCancel = () => {
-    if (!user) return
-    setEditForm({ name: user.name, phone: user.phone, location: user.location ?? '' })
     setEditing(false)
     setSaveMsg(null)
   }
@@ -123,7 +96,17 @@ export default function UserProfile() {
     window.location.href = '/login'
   }
 
-  // No session
+  // ── Loading ──
+  if (loading) {
+    return (
+      <div className="bg-surface text-on-surface min-h-screen font-body flex flex-col items-center justify-center gap-4">
+        <div className="w-10 h-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+        <p className="text-on-surface-variant font-medium">Cargando perfil...</p>
+      </div>
+    )
+  }
+
+  // ── No session ──
   if (!user) {
     return (
       <div className="bg-surface text-on-surface min-h-screen font-body flex flex-col items-center justify-center gap-4">
@@ -136,8 +119,12 @@ export default function UserProfile() {
     )
   }
 
-  const displayPhoto = user.photo ?? null
-  const initials = user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+  // Foto: primero del backend, luego del localStorage (si subió antes)
+  const storedPhotos = JSON.parse(localStorage.getItem('zylo_photo') || '{}')
+  const displayPhoto = user.photo ?? storedPhotos[user.email] ?? null
+  const initials = user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+  const accountType = user.account_type ?? user.accountType ?? session?.accountType
+  const createdAt = user.created_at ?? user.createdAt
 
   return (
     <div className="bg-surface text-on-surface min-h-screen font-body antialiased">
@@ -162,7 +149,7 @@ export default function UserProfile() {
           <div className="bg-[#f3f0ef] rounded-xl p-8 sm:p-12 flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
             <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
 
-            {/* Avatar with upload */}
+            {/* Avatar */}
             <div className="relative shrink-0">
               {displayPhoto ? (
                 <img
@@ -175,33 +162,26 @@ export default function UserProfile() {
                   <span className="font-headline text-4xl font-extrabold text-white">{initials}</span>
                 </div>
               )}
-              {/* Upload button */}
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute bottom-2 right-2 bg-white p-2 rounded-full border-4 border-[#f3f0ef] shadow-md hover:bg-[#f3f0ef] transition-colors group"
+                className="absolute bottom-2 right-2 bg-white p-2 rounded-full border-4 border-[#f3f0ef] shadow-md hover:bg-[#f3f0ef] transition-colors"
                 title="Cambiar foto"
               >
                 <span className="material-symbols-outlined text-primary text-lg" style={{ fontVariationSettings: '"FILL" 1' }}>
                   photo_camera
                 </span>
               </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handlePhotoChange}
-              />
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
             </div>
 
             {/* Info / Edit form */}
             <div className="flex-1 text-center md:text-left w-full">
               <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-1 rounded-full mb-4">
                 <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: '"FILL" 1', fontSize: 16 }}>
-                  {user.accountType === 'business' ? 'storefront' : 'person'}
+                  {accountType === 'business' ? 'storefront' : 'person'}
                 </span>
                 <span className="text-xs font-bold uppercase tracking-wider font-label">
-                  {user.accountType === 'business' ? 'Empresa' : 'Usuario'}
+                  {accountType === 'business' ? 'Empresa' : 'Usuario'}
                 </span>
               </div>
 
@@ -218,7 +198,6 @@ export default function UserProfile() {
                     onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))}
                     placeholder="Teléfono"
                     type="tel"
-                    inputMode="tel"
                     className="w-full bg-white rounded-xl px-4 py-3 text-sm text-on-surface outline-none focus:ring-2 focus:ring-[#ff785133] border border-[#afadac]/20"
                   />
                   <input
@@ -262,24 +241,15 @@ export default function UserProfile() {
             <div className="flex gap-3 shrink-0">
               {editing ? (
                 <>
-                  <button
-                    onClick={handleCancel}
-                    className="px-6 py-3 rounded-full font-headline font-bold border-2 border-[#afadac]/30 text-on-surface-variant hover:bg-[#e4e2e1] transition-all active:scale-95"
-                  >
+                  <button onClick={handleCancel} className="px-6 py-3 rounded-full font-headline font-bold border-2 border-[#afadac]/30 text-on-surface-variant hover:bg-[#e4e2e1] transition-all active:scale-95">
                     Cancelar
                   </button>
-                  <button
-                    onClick={handleSave}
-                    className="signature-gradient text-white px-8 py-3 rounded-full font-headline font-bold shadow-lg hover:opacity-90 active:scale-95 transition-all"
-                  >
-                    Guardar
+                  <button onClick={handleSave} disabled={isSaving} className="signature-gradient text-white px-8 py-3 rounded-full font-headline font-bold shadow-lg hover:opacity-90 active:scale-95 transition-all disabled:opacity-50">
+                    {isSaving ? 'Guardando...' : 'Guardar'}
                   </button>
                 </>
               ) : (
-                <button
-                  onClick={() => setEditing(true)}
-                  className="signature-gradient text-white px-8 py-4 rounded-full font-headline font-bold shadow-lg hover:shadow-primary/20 active:scale-95 transition-all flex items-center gap-2"
-                >
+                <button onClick={initForm} className="signature-gradient text-white px-8 py-4 rounded-full font-headline font-bold shadow-lg hover:shadow-primary/20 active:scale-95 transition-all flex items-center gap-2">
                   <span className="material-symbols-outlined text-base">edit</span>
                   Editar perfil
                 </button>
@@ -290,12 +260,9 @@ export default function UserProfile() {
 
         {/* ── Main Grid ── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-
-          {/* Left column */}
           <div className="lg:col-span-7 space-y-10">
             <h2 className="text-2xl font-headline font-bold">Mi actividad</h2>
 
-            {/* Bookings card */}
             <div className="bg-white rounded-xl p-8 shadow-sm hover:shadow-md transition-shadow group cursor-pointer">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-6">
@@ -314,27 +281,11 @@ export default function UserProfile() {
               </div>
             </div>
 
-            {/* Saved + Payment grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <QuickCard
-                icon="bookmark"
-                iconColor="text-[#a03739]"
-                iconBg="bg-[#a03739]/10"
-                title="Lugares guardados"
-                subtitle="0 favoritos guardados"
-                linkLabel="Ver lista"
-              />
-              <QuickCard
-                icon="payments"
-                iconColor="text-[#833e9a]"
-                iconBg="bg-[#833e9a]/10"
-                title="Métodos de pago"
-                subtitle="Ninguno configurado"
-                linkLabel="Gestionar tarjetas"
-              />
+              <QuickCard icon="bookmark" iconColor="text-[#a03739]" iconBg="bg-[#a03739]/10" title="Lugares guardados" subtitle="0 favoritos guardados" linkLabel="Ver lista" />
+              <QuickCard icon="payments" iconColor="text-[#833e9a]" iconBg="bg-[#833e9a]/10" title="Métodos de pago" subtitle="Ninguno configurado" linkLabel="Gestionar tarjetas" />
             </div>
 
-            {/* Account info card */}
             <div className="bg-white rounded-xl p-8 shadow-sm border border-[#afadac]/10">
               <h2 className="font-headline text-xl font-bold mb-6">Información de cuenta</h2>
               <div className="space-y-4 text-sm">
@@ -343,7 +294,7 @@ export default function UserProfile() {
                   { icon: 'mail', label: 'Correo', value: user.email },
                   { icon: 'call', label: 'Teléfono', value: user.phone || '—' },
                   { icon: 'location_on', label: 'Ubicación', value: user.location || '—' },
-                  { icon: 'calendar_today', label: 'Miembro desde', value: new Date(user.createdAt).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) },
+                  { icon: 'calendar_today', label: 'Miembro desde', value: createdAt ? new Date(createdAt).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) : '—' },
                 ].map(row => (
                   <div key={row.label} className="flex items-center justify-between py-2 border-b border-[#f3f0ef] last:border-0">
                     <span className="flex items-center gap-3 text-on-surface-variant font-medium">
@@ -357,35 +308,12 @@ export default function UserProfile() {
             </div>
           </div>
 
-          {/* Right column */}
           <div className="lg:col-span-5 space-y-8">
-
-            {/* Preferences */}
-            {/* <div className="bg-[#f3f0ef] rounded-xl p-8">
-              <h2 className="font-headline text-xl font-bold mb-6">Preferencias</h2>
-              <div className="space-y-6">
-                {prefs.map((pref, i) => (
-                  <div key={pref.key} className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <span className="material-symbols-outlined text-outline">{pref.icon}</span>
-                      <span className="font-medium">{pref.label}</span>
-                    </div>
-                    <Toggle enabled={pref.enabled} onToggle={() => togglePref(i)} />
-                  </div>
-                ))}
-              </div>
-            </div> */}
-
-            {/* Support */}
             <div className="bg-white rounded-xl p-8 shadow-sm border border-[#afadac]/10">
               <h2 className="font-headline text-xl font-bold mb-6">Soporte</h2>
               <nav className="space-y-2">
                 {supportLinks.map(link => (
-                  <a
-                    key={link.label}
-                    href="#"
-                    className="flex items-center justify-between p-3 rounded-lg hover:bg-[#f3f0ef] transition-colors"
-                  >
+                  <a key={link.label} href="#" className="flex items-center justify-between p-3 rounded-lg hover:bg-[#f3f0ef] transition-colors">
                     <div className="flex items-center gap-4">
                       <span className="material-symbols-outlined text-primary">{link.icon}</span>
                       <span className="font-medium">{link.label}</span>
@@ -396,11 +324,7 @@ export default function UserProfile() {
               </nav>
             </div>
 
-            {/* Log out */}
-            <button
-              onClick={handleLogout}
-              className="w-full py-4 rounded-xl font-headline font-bold border-2 border-[#afadac]/30 text-on-surface-variant hover:bg-[#dfdcdc] transition-colors active:scale-95 flex items-center justify-center gap-3"
-            >
+            <button onClick={handleLogout} className="w-full py-4 rounded-xl font-headline font-bold border-2 border-[#afadac]/30 text-on-surface-variant hover:bg-[#dfdcdc] transition-colors active:scale-95 flex items-center justify-center gap-3">
               <span className="material-symbols-outlined">logout</span>
               Cerrar sesión
             </button>
@@ -408,7 +332,6 @@ export default function UserProfile() {
         </div>
       </main>
 
-      {/* ── Footer ── */}
       <footer className="w-full rounded-t-[3rem] mt-20 bg-[#f3f0ef] font-body text-sm tracking-wide">
         <div className="flex flex-col md:flex-row justify-between items-center px-8 sm:px-12 py-16 w-full max-w-7xl mx-auto">
           <div className="mb-8 md:mb-0 text-center md:text-left">
@@ -417,9 +340,7 @@ export default function UserProfile() {
           </div>
           <div className="flex flex-wrap justify-center gap-8 md:gap-12">
             {footerLinks.map(link => (
-              <a key={link} href="#" className="text-[#5c5b5b] hover:text-primary transition-all">
-                {link}
-              </a>
+              <a key={link} href="#" className="text-[#5c5b5b] hover:text-primary transition-all">{link}</a>
             ))}
           </div>
         </div>
@@ -427,19 +348,6 @@ export default function UserProfile() {
     </div>
   )
 }
-
-/* ── Sub-components ── */
-
-// function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
-//   return (
-//     <button
-//       onClick={onToggle}
-//       className={`w-12 h-6 rounded-full relative transition-colors duration-300 ${enabled ? 'bg-primary' : 'bg-[#dfdcdc]'}`}
-//     >
-//       <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all duration-300 ${enabled ? 'right-1' : 'left-1'}`} />
-//     </button>
-//   )
-// }
 
 function QuickCard({ icon, iconColor, iconBg, title, subtitle, linkLabel }: {
   icon: string; iconColor: string; iconBg: string; title: string; subtitle: string; linkLabel: string
