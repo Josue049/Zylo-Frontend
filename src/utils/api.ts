@@ -19,6 +19,3 @@ export async function apiFetch(path: string, options = {}) {
 
   return res.json();
 }
-
-// Uso en cualquier página:
-// const data = await apiFetch("/reservations");
