@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import HeaderBusiness from '../../components/business/HeaderBusiness'
 import {
   getSession,
-  getBusinessConversations,
-  getConversationMessages,
-  sendMessage,
-  markConversationAsRead,
+  getBusinessConversationsAsync,
+  getConversationMessagesAsync,
+  sendMessageAsync,
+  markConversationAsReadAsync,
   formatMessageTime,
   type Conversation,
   type Message,
@@ -23,48 +23,68 @@ export default function BusinessMessagesPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isMobileChat, setIsMobileChat] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef  = useRef<HTMLInputElement>(null)
 
-  // Solo cuentas de negocio pueden entrar
   useEffect(() => {
     if (!session || session.accountType !== 'business') navigate('/login')
   }, [])
 
-  const loadConversations = () => {
+  const loadConversations = useCallback(async () => {
     if (!session) return
-    const convs = getBusinessConversations(session.email)
-    convs.sort((a, b) => new Date(b.lastTimestamp).getTime() - new Date(a.lastTimestamp).getTime())
-    setConversations(convs)
-  }
+    try {
+      const convs = await getBusinessConversationsAsync()
+      convs.sort((a, b) => new Date(b.lastTimestamp).getTime() - new Date(a.lastTimestamp).getTime())
+      setConversations(convs)
+    } catch (e) {
+      console.error('Error cargando conversaciones', e)
+    }
+  }, [])
 
-  useEffect(() => { loadConversations() }, [])
+  useEffect(() => {
+    loadConversations().finally(() => setLoading(false))
+  }, [])
 
   useEffect(() => {
     const convId = searchParams.get('conv')
     if (convId) { setActiveConvId(convId); setIsMobileChat(true) }
   }, [searchParams])
 
+  const loadMessages = useCallback(async (convId: string) => {
+    if (!session) return
+    try {
+      await markConversationAsReadAsync(convId)
+      const msgs = await getConversationMessagesAsync(convId)
+      setMessages(msgs)
+      loadConversations()
+    } catch (e) {
+      console.error('Error cargando mensajes', e)
+    }
+  }, [])
+
   useEffect(() => {
-    if (!activeConvId || !session) return
-    markConversationAsRead(activeConvId, session.email, 'business')
-    setMessages(getConversationMessages(activeConvId))
-    loadConversations()
+    if (!activeConvId) return
+    loadMessages(activeConvId)
   }, [activeConvId])
 
   // Polling para detectar mensajes nuevos del cliente
   useEffect(() => {
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
       if (activeConvId) {
-        const fresh = getConversationMessages(activeConvId)
-        if (fresh.length !== messages.length) {
-          setMessages(fresh)
-          loadConversations()
-        }
+        try {
+          const fresh = await getConversationMessagesAsync(activeConvId)
+          if (fresh.length !== messages.length) {
+            setMessages(fresh)
+            loadConversations()
+          }
+        } catch {}
       } else {
         loadConversations()
       }
-    }, 800)
+    }, 3000)
     return () => clearInterval(interval)
   }, [activeConvId, messages.length])
 
@@ -74,20 +94,29 @@ export default function BusinessMessagesPage() {
 
   const activeConv = conversations.find(c => c.id === activeConvId) ?? null
 
-  const handleSend = () => {
-    if (!input.trim() || !activeConvId || !session) return
+  const handleSend = async () => {
+    if (!input.trim() || !activeConvId || !session || sending) return
     const text = input.trim()
-    sendMessage(activeConvId, session.email, session.name, text, 'business')
-
-    // Notificar al usuario cliente
-    if (activeConv) {
-      notifyNewMessage(activeConv.userId, activeConv.businessName, text, activeConvId)
-    }
-
     setInput('')
-    setMessages(getConversationMessages(activeConvId))
-    loadConversations()
-    setTimeout(() => inputRef.current?.focus(), 0)
+    setSending(true)
+    setError(null)
+    try {
+      const newMsg = await sendMessageAsync(activeConvId, text)
+      setMessages(prev => [...prev, newMsg])
+      loadConversations()
+      // Notificar al cliente que recibió un nuevo mensaje
+      if (activeConv) {
+        notifyNewMessage(activeConv.userId, session.name, text).catch(e =>
+          console.error('No se pudo crear la notificación', e)
+        )
+      }
+    } catch {
+      setError('No se pudo enviar el mensaje. Intenta de nuevo.')
+      setInput(text)
+    } finally {
+      setSending(false)
+      setTimeout(() => inputRef.current?.focus(), 0)
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -97,7 +126,6 @@ export default function BusinessMessagesPage() {
   const openConversation = (id: string) => { setActiveConvId(id); setIsMobileChat(true) }
   const goBackToList = () => { setIsMobileChat(false); setActiveConvId(null) }
 
-  // Total de no leídos del negocio
   const totalUnread = conversations.reduce((sum, c) => sum + c.businessUnreadCount, 0)
 
   if (!session) return null
@@ -128,17 +156,24 @@ export default function BusinessMessagesPage() {
 
         {/* Split Panel */}
         <div className="flex-1 flex gap-4 min-h-0 h-[calc(100vh-280px)]">
-
           {/* Conversation List */}
           <aside className={`flex flex-col gap-2 overflow-y-auto w-full md:w-80 md:min-w-[280px] md:flex shrink-0 ${isMobileChat ? 'hidden md:flex' : 'flex'}`}>
-            {conversations.length === 0 ? <EmptyState /> : conversations.map(conv => (
-              <ClientConversationItem
-                key={conv.id}
-                conv={conv}
-                isActive={conv.id === activeConvId}
-                onClick={() => openConversation(conv.id)}
-              />
-            ))}
+            {loading ? (
+              <div className="flex items-center justify-center py-16">
+                <span className="material-symbols-outlined animate-spin text-[#ab2d00] text-3xl">progress_activity</span>
+              </div>
+            ) : conversations.length === 0 ? (
+              <EmptyState />
+            ) : (
+              conversations.map(conv => (
+                <ClientConversationItem
+                  key={conv.id}
+                  conv={conv}
+                  isActive={conv.id === activeConvId}
+                  onClick={() => openConversation(conv.id)}
+                />
+              ))
+            )}
           </aside>
 
           {/* Chat Panel */}
@@ -147,7 +182,6 @@ export default function BusinessMessagesPage() {
               <>
                 {/* Chat Header */}
                 <div className="flex items-center gap-4 px-6 py-4 border-b border-[#e4e2e1] bg-white shrink-0">
-                  {/* Avatar del cliente */}
                   <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 bg-gradient-to-br from-[#ab2d00] to-[#ff7851] flex items-center justify-center text-white font-headline font-bold text-lg">
                     {activeConv.userPhoto
                       ? <img src={activeConv.userPhoto} alt={activeConv.userName} className="w-full h-full object-cover" />
@@ -158,7 +192,6 @@ export default function BusinessMessagesPage() {
                     <h2 className="font-headline font-bold text-lg text-[#2f2f2e] truncate">{activeConv.userName}</h2>
                     <p className="text-xs text-[#5c5b5b]">Cliente</p>
                   </div>
-                  {/* Badge de no leídos si los hay */}
                   {activeConv.businessUnreadCount > 0 && (
                     <span className="bg-[#ab2d00] text-white text-xs font-bold px-3 py-1 rounded-full">
                       {activeConv.businessUnreadCount} sin leer
@@ -180,8 +213,7 @@ export default function BusinessMessagesPage() {
                     <>
                       <DateDivider />
                       {messages.map((msg, i) => {
-                        // Desde la vista del negocio: "propio" = mensajes del negocio
-                        const isOwn = msg.senderId.toLowerCase() === session.email.toLowerCase()
+                        const isOwn = msg.senderId === session.user?.id
                         const prevMsg = messages[i - 1]
                         const showSender = !isOwn && (!prevMsg || prevMsg.senderId !== msg.senderId)
                         return <MessageBubble key={msg.id} msg={msg} isOwn={isOwn} showSender={showSender} />
@@ -190,6 +222,13 @@ export default function BusinessMessagesPage() {
                     </>
                   )}
                 </div>
+
+                {/* Error banner */}
+                {error && (
+                  <div className="px-4 py-2 bg-red-50 border-t border-red-100 text-xs text-red-600 text-center">
+                    {error}
+                  </div>
+                )}
 
                 {/* Input */}
                 <div className="px-4 py-4 bg-white border-t border-[#e4e2e1] shrink-0">
@@ -202,13 +241,16 @@ export default function BusinessMessagesPage() {
                       onKeyDown={handleKeyDown}
                       placeholder={`Responder a ${activeConv.userName}...`}
                       className="flex-1 bg-transparent text-[#2f2f2e] text-sm outline-none placeholder:text-[#787676]"
+                      disabled={sending}
                     />
                     <button
                       onClick={handleSend}
-                      disabled={!input.trim()}
-                      className={`w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90 shrink-0 ${input.trim() ? 'bg-gradient-to-br from-[#ab2d00] to-[#ff7851] text-white shadow-md shadow-[#ab2d00]/20' : 'bg-[#dfdcdc] text-[#787676]'}`}
+                      disabled={!input.trim() || sending}
+                      className={`w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90 shrink-0 ${input.trim() && !sending ? 'bg-gradient-to-br from-[#ab2d00] to-[#ff7851] text-white shadow-md shadow-[#ab2d00]/20' : 'bg-[#dfdcdc] text-[#787676]'}`}
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: 18 }}>send</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+                        {sending ? 'hourglass_empty' : 'send'}
+                      </span>
                     </button>
                   </div>
                   <p className="text-[10px] text-[#787676] text-center mt-2">
@@ -232,7 +274,6 @@ function ClientConversationItem({ conv, isActive, onClick }: {
   const unread = conv.businessUnreadCount
   return (
     <button onClick={onClick} className={`w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all active:scale-[0.98] ${isActive ? 'bg-white shadow-md border border-[#ff785133]' : 'bg-white hover:bg-[#f3f0ef] border border-transparent'}`}>
-      {/* Avatar con inicial */}
       <div className="relative shrink-0">
         <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#ab2d00] to-[#ff7851] flex items-center justify-center text-white font-headline font-bold text-lg overflow-hidden">
           {conv.userPhoto
@@ -246,7 +287,6 @@ function ClientConversationItem({ conv, isActive, onClick }: {
           </span>
         )}
       </div>
-
       <div className="flex-1 min-w-0">
         <div className="flex justify-between items-center mb-0.5">
           <span className={`font-headline text-sm truncate ${unread > 0 ? 'font-extrabold text-[#2f2f2e]' : 'font-bold text-[#2f2f2e]'}`}>

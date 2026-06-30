@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import HeaderBusiness from '../../components/user/HeaderUser';
 import { businesses } from '../../data/businesses';
-import { getSession, getOrCreateConversation } from '../../data/messages';
+import { getSession, getOrCreateConversationAsync } from '../../data/messages';
 
 /* ── Favoritos en localStorage ── */
 interface FavoriteBusiness {
@@ -47,23 +47,24 @@ export default function booking() {
     setIsFavorite(favs.some(f => f.id === String(business.id)));
   }, [business]);
 
-  const handleMessage = () => {
+  const handleMessage = async () => {
     if (!business) return;
     const session = getSession();
     if (!session) {
       navigate('/login');
       return;
     }
-    const conv = getOrCreateConversation(
-      session.email,
-      session.name,
-      undefined,
-      business.email,
-      business.name,
-      business.category,
-      business.image,
-    );
-    navigate(`/messages?conv=${conv.id}`);
+    try {
+      // business.id debe ser el ID real del negocio en el backend
+      const conv = await getOrCreateConversationAsync(
+        String(business.id),
+        `Consulta sobre ${business.name}`
+      );
+      navigate(`/messages?conv=${conv.id}`);
+    } catch (e) {
+      console.error('Error al abrir conversación', e);
+      navigate('/messages');
+    }
   };
 
   if (!business) {

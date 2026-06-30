@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import HeaderUser from "../../components/user/HeaderUser";
-import { scheduleAppointmentReminder } from "../../data/notifications";
 
 interface Business {
   id: number;
@@ -159,20 +158,6 @@ const Booking: React.FC = () => {
       const raw = localStorage.getItem(STORAGE_KEY);
       const currentAppointments: Appointment[] = raw ? JSON.parse(raw) : [];
       localStorage.setItem(STORAGE_KEY, JSON.stringify([...currentAppointments, newAppointment]));
-
-      try {
-        const session = JSON.parse(localStorage.getItem("zylo_session") || "null");
-        if (session?.email) {
-          scheduleAppointmentReminder(
-            session.email,
-            newAppointment.service,
-            newAppointment.businessName,
-            newAppointment.date,
-            newAppointment.time,
-            newAppointment.id,
-          );
-        }
-      } catch (_) {}
 
       setIsProcessing(false);
       setShowPaymentModal(false);

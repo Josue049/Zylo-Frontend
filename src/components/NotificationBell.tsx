@@ -1,11 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  getVisibleNotifications,
-  getVisibleUnreadCount,
-  markAsRead,
-  markAllAsRead,
-  activateDueReminders,
+  getNotificationsAsync,
+  getUnreadCountAsync,
+  markAsReadAsync,
   type ZyloNotification,
 } from '../data/notifications'
 
@@ -44,11 +42,18 @@ export default function NotificationBell({ userId }: Props) {
   const panelRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback(async () => {
     if (!userId) return
-    activateDueReminders(userId)
-    setNotifications(getVisibleNotifications(userId))
-    setUnread(getVisibleUnreadCount(userId))
+    try {
+      const [items, count] = await Promise.all([
+        getNotificationsAsync(),
+        getUnreadCountAsync(),
+      ])
+      setNotifications(items)
+      setUnread(count)
+    } catch (e) {
+      console.error('Error cargando notificaciones', e)
+    }
   }, [userId])
 
   // Polling
@@ -69,16 +74,17 @@ export default function NotificationBell({ userId }: Props) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  function handleNotificationClick(n: ZyloNotification) {
-    markAsRead(n.id)
+  async function handleNotificationClick(n: ZyloNotification) {
+    if (!n.read) {
+      try {
+        await markAsReadAsync(n.id)
+      } catch (e) {
+        console.error('Error marcando notificación como leída', e)
+      }
+    }
     refresh()
     setOpen(false)
     if (n.route) navigate(n.route)
-  }
-
-  function handleMarkAllRead() {
-    markAllAsRead(userId)
-    refresh()
   }
 
   return (
@@ -105,14 +111,6 @@ export default function NotificationBell({ userId }: Props) {
           {/* Header del panel */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-[#f3f0ef]">
             <h3 className="font-bold text-sm text-[#2f2f2e]">Notificaciones</h3>
-            {unread > 0 && (
-              <button
-                onClick={handleMarkAllRead}
-                className="text-xs text-[#d5521b] font-semibold hover:underline"
-              >
-                Marcar todo como leído
-              </button>
-            )}
           </div>
 
           {/* Lista */}

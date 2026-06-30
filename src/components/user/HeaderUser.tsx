@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
+import NotificationBell from "../NotificationBell";
 
 /* ── Types ── */
 interface StoredUser {
@@ -32,7 +33,7 @@ const USERS_KEY = "zylo_users";
 const SESSION_KEY = "zylo_session";
 const APPOINTMENTS_KEY = "zylo_appointments";
 
-function getSession(): { email: string; name: string } | null {
+function getSession(): { email: string; name: string; user?: { id: string } } | null {
   try {
     return JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
   } catch {
@@ -78,6 +79,7 @@ function formatDate(dateTime: string) {
 /* ── Component ── */
 export default function Header() {
   const [user] = useState<StoredUser | null>(() => getCurrentUser());
+  const [session] = useState(() => getSession());
   const [showReservationsModal, setShowReservationsModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
   const [calendarMonth, setCalendarMonth] = useState(
@@ -181,6 +183,8 @@ export default function Header() {
               Favoritos
             </Link>
           </div>
+
+          {session?.user?.id && <NotificationBell userId={session.user.id} />}
 
           <div className="w-10 h-10 rounded-full bg-[#e4e2e1] overflow-hidden cursor-pointer active:scale-95 transition-transform">
             <Link to="/profile">

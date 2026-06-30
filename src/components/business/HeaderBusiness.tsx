@@ -2,10 +2,10 @@ import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import NotificationBell from "../NotificationBell";
 
-function getSessionEmail(): string {
+function getSessionUserId(): string {
   try {
     const s = JSON.parse(localStorage.getItem("zylo_session") || "null");
-    return s?.email ?? "";
+    return s?.user?.id ?? "";
   } catch {
     return "";
   }
@@ -13,7 +13,7 @@ function getSessionEmail(): string {
 
 export default function HeaderBusiness() {
   const navigate = useNavigate();
-  const [sessionEmail] = useState<string>(() => getSessionEmail());
+  const [sessionUserId] = useState<string>(() => getSessionUserId());
 
   const navItems = [
     { label: "Dashboard", to: "/businessHome" },
@@ -49,7 +49,7 @@ export default function HeaderBusiness() {
           ))}
         </nav>
 
-        {sessionEmail && <NotificationBell userId={sessionEmail} />}
+        {sessionUserId && <NotificationBell userId={sessionUserId} />}
 
         <button
           onClick={() => navigate("/profile")}
