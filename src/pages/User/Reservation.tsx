@@ -1,32 +1,51 @@
-﻿import { useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import HeaderUser from "../../components/user/HeaderUser";
 
+// AJUSTAR si tu base URL o el nombre de la key del token son distintos.
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const TOKEN_KEY = "token";
+
 interface Appointment {
-  id: number;
+  id: string;
   service: string;
   businessName: string;
   businessCategory: string;
   professionalName: string;
   professionalRole: string;
-  date: string;
-  time: string;
+  date: string; // YYYY-MM-DD
+  time: string; // hh:mm
   price: number;
   businessImage: string;
   status: "upcoming" | "cancelled";
 }
 
-const STORAGE_KEY = "zylo_appointments";
-
-function loadAppointments(): Appointment[] {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]") as Appointment[];
-  } catch {
-    return [];
-  }
+function authHeaders(): HeadersInit {
+  const token = localStorage.getItem(TOKEN_KEY);
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-function saveAppointments(data: Appointment[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+// El backend devuelve booking_payload(booking, db). Mapeamos los campos que
+// asumimos vienen anidados como service/business/professional. Si tu
+// serializer usa otras claves, ajustar solo esta función.
+function mapBookingFromApi(raw: any): Appointment {
+  const startAt: string = raw.start_at;
+  const startDate = new Date(startAt);
+  return {
+    id: raw.id,
+    service: raw.service?.name ?? raw.service_name ?? "Servicio",
+    businessName: raw.business?.name ?? raw.business_name ?? "",
+    businessCategory: raw.business?.category ?? raw.business_category ?? "",
+    professionalName: raw.professional?.name ?? raw.professional_name ?? "",
+    professionalRole: raw.professional?.role ?? raw.professional_role ?? "",
+    date: startDate.toISOString().slice(0, 10),
+    time: startDate.toLocaleTimeString("es-ES", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    price: Number(raw.price ?? 0),
+    businessImage: raw.business?.image ?? raw.business_image ?? "",
+    status: raw.status === "canceled" ? "cancelled" : "upcoming",
+  };
 }
 
 function formatDateKey(date: Date) {
@@ -65,22 +84,40 @@ function parseTimeToMinutes(time: string) {
   return hour * 60 + minute;
 }
 
-function formatMinutesToTime(value: number) {
-  const hour = Math.floor(value / 60) % 24;
-  const minute = value % 60;
-  return new Date(0, 0, 0, hour, minute).toLocaleTimeString("es-ES", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 export default function Reservations() {
   const today = new Date();
-  const [appointments, setAppointments] = useState<Appointment[]>(() => loadAppointments());
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(
     new Date(today.getFullYear(), today.getMonth(), 1),
   );
   const [selectedDate, setSelectedDate] = useState(formatDateKey(today));
+
+  const fetchAppointments = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE_URL}/bookings`, {
+        headers: { ...authHeaders() },
+      });
+      if (!res.ok) {
+        throw new Error(`Error ${res.status} al cargar las reservas`);
+      }
+      const data = await res.json();
+      const list: Appointment[] = (data.bookings || []).map(mapBookingFromApi);
+      setAppointments(list);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudieron cargar las reservas");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAppointments();
+  }, []);
 
   const appointmentsByDate = useMemo(() => {
     return appointments.reduce<Record<string, Appointment[]>>((acc, item) => {
@@ -108,68 +145,49 @@ export default function Reservations() {
 
     for (let i = startOffset; i > 0; i -= 1) {
       const d = new Date(year, month, 1 - i);
-      days.push({
-        date: d,
-        currentMonth: false,
-        dateKey: formatDateKey(d),
-      });
+      days.push({ date: d, currentMonth: false, dateKey: formatDateKey(d) });
     }
 
     for (let day = 1; day <= daysInMonth; day += 1) {
       const d = new Date(year, month, day);
-      days.push({
-        date: d,
-        currentMonth: true,
-        dateKey: formatDateKey(d),
-      });
+      days.push({ date: d, currentMonth: true, dateKey: formatDateKey(d) });
     }
 
     while (days.length % 7 !== 0) {
       const d = new Date(year, month, daysInMonth + (days.length % 7) + 1);
-      days.push({
-        date: d,
-        currentMonth: false,
-        dateKey: formatDateKey(d),
-      });
+      days.push({ date: d, currentMonth: false, dateKey: formatDateKey(d) });
     }
 
     return days;
   }, [currentMonth]);
 
   const goPrevMonth = () => {
-    setCurrentMonth(
-      (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1),
-    );
+    setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
   };
 
   const goNextMonth = () => {
-    setCurrentMonth(
-      (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1),
-    );
+    setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   };
 
-  const cancelAppointment = (id: number) => {
-    const updated = appointments.map((item) =>
-      item.id === id ? { ...item, status: "cancelled" as const } : item,
-    ) as Appointment[];
-    setAppointments(updated);
-    saveAppointments(updated);
-  };
-
-  const rescheduleAppointment = (id: number) => {
-    const updated = appointments.map((item) => {
-      if (item.id !== id || item.status === "cancelled") return item;
-      const dateObj = new Date(`${item.date}T00:00:00`);
-      dateObj.setDate(dateObj.getDate() + 1);
-      const nextMinutes = parseTimeToMinutes(item.time) + 60;
-      return {
-        ...item,
-        date: formatDateKey(dateObj),
-        time: formatMinutesToTime(nextMinutes),
-      };
-    }) as Appointment[];
-    setAppointments(updated);
-    saveAppointments(updated);
+  const cancelAppointment = async (id: string) => {
+    setCancellingId(id);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE_URL}/bookings/${id}/cancel`, {
+        method: "PATCH",
+        headers: { ...authHeaders() },
+      });
+      if (!res.ok) {
+        throw new Error(`Error ${res.status} al cancelar la reserva`);
+      }
+      setAppointments((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, status: "cancelled" } : item)),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo cancelar la reserva");
+    } finally {
+      setCancellingId(null);
+    }
   };
 
   return (
@@ -198,6 +216,18 @@ export default function Reservations() {
             </p>
           </div>
         </section>
+
+        {error && (
+          <div className="mb-6 rounded-2xl border border-[#f3c9c9] bg-[#fdecec] px-5 py-3 text-sm font-semibold text-[#9b3b3b] flex items-center justify-between gap-4">
+            <span>{error}</span>
+            <button
+              onClick={fetchAppointments}
+              className="px-3 py-1.5 rounded-full bg-white text-[#9b3b3b] text-xs font-bold"
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 xl:grid-cols-[1.35fr_0.9fr] gap-8">
           <section className="bg-white rounded-[28px] shadow-sm border border-[#f0e5df] overflow-hidden">
@@ -352,7 +382,7 @@ export default function Reservations() {
                 })}
               </h2>
               <p className="text-sm text-[#7a7877] mt-3">
-                Aquí puedes revisar el detalle de tus citas programadas, cancelarlas o moverlas rápidamente.
+                Aquí puedes revisar el detalle de tus citas programadas y cancelarlas.
               </p>
             </section>
 
@@ -364,7 +394,11 @@ export default function Reservations() {
                 </span>
               </div>
 
-              {selectedDayAppointments.length === 0 ? (
+              {loading ? (
+                <div className="rounded-3xl bg-[#faf6f4] border border-dashed border-[#eadcd5] p-6 text-center">
+                  <p className="text-sm font-semibold text-[#5e5a58]">Cargando reservas…</p>
+                </div>
+              ) : selectedDayAppointments.length === 0 ? (
                 <div className="rounded-3xl bg-[#faf6f4] border border-dashed border-[#eadcd5] p-6 text-center">
                   <p className="text-sm font-semibold text-[#5e5a58]">
                     No tienes reservas este día
@@ -423,17 +457,13 @@ export default function Reservations() {
                           <div className="flex flex-wrap gap-3 mt-4">
                             <button
                               onClick={() => cancelAppointment(appointment.id)}
-                              disabled={appointment.status === "cancelled"}
+                              disabled={
+                                appointment.status === "cancelled" ||
+                                cancellingId === appointment.id
+                              }
                               className="px-4 py-2 rounded-full bg-[#2f2f2e] text-white text-sm font-bold disabled:opacity-40"
                             >
-                              Cancelar
-                            </button>
-                            <button
-                              onClick={() => rescheduleAppointment(appointment.id)}
-                              disabled={appointment.status === "cancelled"}
-                              className="px-4 py-2 rounded-full bg-[#fff1ea] text-[#c1491c] text-sm font-bold disabled:opacity-40"
-                            >
-                              Reprogramar
+                              {cancellingId === appointment.id ? "Cancelando…" : "Eliminar reserva"}
                             </button>
                           </div>
                         </div>
