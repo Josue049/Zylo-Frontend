@@ -34,6 +34,7 @@ interface Service {
   duration_minutes: number;
   price: number;
   active: boolean;
+  professionals?: { id: string }[];
 }
 
 interface TeamMember {
@@ -129,7 +130,7 @@ export default function BusinessProfile() {
   }, [id]);
 
   // =========================
-  // ⭐ FIX FAVORITES (CLAVE)
+  // FAVORITES
   // =========================
   useEffect(() => {
     if (!business?.id) return;
@@ -163,9 +164,8 @@ export default function BusinessProfile() {
   }, [business]);
 
   // =========================
-  // ⭐ TOGGLE FAVORITE FIX
+  // TOGGLE FAVORITE
   // =========================
-
   async function toggleFavorite() {
     if (!business) return;
 
@@ -173,9 +173,12 @@ export default function BusinessProfile() {
     setIsFavorite(nextState);
 
     try {
-      await authFetch(`${API_BASE}/users/me/favorites/${business.id}`, {
+      const res = await authFetch(`${API_BASE}/users/me/favorites/${business.id}`, {
         method: nextState ? "POST" : "DELETE",
       });
+      if (!res.ok) {
+        throw new Error("No se pudo actualizar favoritos");
+      }
     } catch (err) {
       console.error(err);
       setIsFavorite(!nextState);
@@ -204,6 +207,31 @@ export default function BusinessProfile() {
 
     navigate(`/messages?conv=${conversation.id}`);
   };
+
+  const handleBooking = () => {
+    if (!business) return;
+
+    if (!getToken()) {
+      navigate("/login");
+      return;
+    }
+
+    if (services.length === 0) {
+      return;
+    }
+
+    // Pass the full business, services and team so Booking can let the
+    // user choose service -> professional -> time without refetching
+    // (and without relying on hardcoded fallback data).
+    navigate(`/booking/${business.id}`, {
+      state: {
+        business,
+        services,
+        team,
+      },
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -263,7 +291,6 @@ export default function BusinessProfile() {
         </section>
 
         {/* Información principal */}
-
         <section className="mt-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
@@ -330,32 +357,10 @@ export default function BusinessProfile() {
             </button>
 
             <button
-              onClick={() =>
-                navigate(`/booking/${business.id}`, {
-                  state: {
-                    business: {
-                      id: business.id,
-                      name: business.name,
-                      image: business.image_url,
-                      imageAlt: business.name,
-                      category: business.category_name,
-                      rating: business.rating,
-                      available: business.availability_status,
-                      availability: business.availability_status
-                        ? "Disponible"
-                        : "No disponible",
-                      bookingTitle:
-                        services.length > 0 ? services[0].name : "Servicio",
-                      duration:
-                        services.length > 0
-                          ? `${services[0].duration_minutes} min`
-                          : "",
-                      price: services.length > 0 ? services[0].price : 0,
-                    },
-                  },
-                })
-              }
-              className="bg-gradient-to-br from-[#ab2d00] to-[#ff7851] text-white px-8 py-4 rounded-full font-bold shadow-lg"
+              onClick={handleBooking}
+              disabled={services.length === 0}
+              className="bg-gradient-to-br from-[#ab2d00] to-[#ff7851] text-white px-8 py-4 rounded-full font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              title={services.length === 0 ? "Este negocio aún no tiene servicios" : undefined}
             >
               Reservar
             </button>
@@ -373,8 +378,8 @@ export default function BusinessProfile() {
                 {business.description}
               </p>
             </section>
-            {/* ---------------- SERVICIOS ---------------- */}
 
+            {/* ---------------- SERVICIOS ---------------- */}
             <section>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="font-['Plus_Jakarta_Sans'] text-2xl font-bold">
@@ -393,9 +398,24 @@ export default function BusinessProfile() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {services.map((service) => (
-                    <div
+                    <button
                       key={service.id}
-                      className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all"
+                      onClick={() => {
+                        if (!business) return;
+                        if (!getToken()) {
+                          navigate("/login");
+                          return;
+                        }
+                        navigate(`/booking/${business.id}`, {
+                          state: {
+                            business,
+                            services,
+                            team,
+                            preselectedServiceId: service.id,
+                          },
+                        });
+                      }}
+                      className="text-left bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all"
                     >
                       <div className="flex justify-between items-center mb-4">
                         <div className="w-12 h-12 rounded-full bg-[#ff7851]/10 flex items-center justify-center">
@@ -430,14 +450,13 @@ export default function BusinessProfile() {
                           {service.active ? "Disponible" : "Inactivo"}
                         </span>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
             </section>
 
             {/* ---------------- EQUIPO ---------------- */}
-
             <section>
               <h2 className="font-['Plus_Jakarta_Sans'] text-2xl font-bold mb-6">
                 Conoce al Equipo
@@ -475,12 +494,11 @@ export default function BusinessProfile() {
               )}
             </section>
           </div>
-          {/* ---------------- SIDEBAR ---------------- */}
 
+          {/* ---------------- SIDEBAR ---------------- */}
           <aside className="space-y-8">
             <div className="bg-[#f3f0ef] p-8 rounded-xl space-y-8">
               {/* Horarios */}
-
               <div>
                 <h3 className="font-bold mb-4 flex items-center gap-2">
                   <span className="material-symbols-outlined text-[#ab2d00]">
@@ -520,7 +538,6 @@ export default function BusinessProfile() {
               </div>
 
               {/* Contacto */}
-
               <div className="border-t border-[#dfdcdc] pt-6">
                 <h3 className="font-bold mb-4 flex items-center gap-2">
                   <span className="material-symbols-outlined text-[#ab2d00]">
@@ -549,7 +566,6 @@ export default function BusinessProfile() {
               </div>
 
               {/* Dirección */}
-
               <div className="border-t border-[#dfdcdc] pt-6">
                 <h3 className="font-bold mb-4 flex items-center gap-2">
                   <span className="material-symbols-outlined text-[#ab2d00]">
@@ -577,7 +593,6 @@ export default function BusinessProfile() {
               </div>
 
               {/* Información */}
-
               <div className="border-t border-[#dfdcdc] pt-6">
                 <div className="flex justify-between mb-3">
                   <span>Servicios</span>

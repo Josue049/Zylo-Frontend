@@ -1,98 +1,171 @@
-import React, { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import HeaderUser from "../../components/user/HeaderUser";
-import { scheduleAppointmentReminder } from "../../data/notifications";
+
+const API_BASE = "https://backend-zylo.vercel.app";
 
 interface Business {
-  id: number;
+  id: string;
   name: string;
-  image: string;
-  imageAlt: string;
-  category: string;
-  distance: string;
+  category_name: string;
+  image_url: string;
   rating: number;
-  availability: string;
-  available: boolean;
-  bookingTitle: string;
-  duration: string;
+  reviews_count: number;
+  address: string;
+}
+
+interface Service {
+  id: string;
+  business_id: string;
+  name: string;
+  description: string;
+  duration_minutes: number;
   price: number;
+  active: boolean;
+  professionals?: { id: string }[];
+  weekly_hours?: Record<string, string[]>;
+}
+
+interface TeamMember {
+  id: string;
+  name: string;
+  role: string;
+  image?: string;
 }
 
 interface TimeSlot {
   id: string;
   label: string;
+  hour: number;
+  minute: number;
   period: "MORNING" | "AFTERNOON";
 }
 
-interface Professional {
-  id: number;
-  name: string;
-  role: string;
-  image: string;
+interface AvailabilityBlockApi {
+  id: string;
+  start_at: string;
+  end_at: string;
 }
 
-interface Appointment {
-  id: number;
-  service: string;
-  businessName: string;
-  businessCategory: string;
-  professionalName: string;
-  professionalRole: string;
-  date: string;
-  time: string;
-  price: number;
-  businessImage: string;
-  status: "upcoming" | "cancelled";
+interface BookingApi {
+  id: string;
+  start_at: string;
+  end_at: string;
+  status: string;
 }
 
-const STORAGE_KEY = "zylo_appointments";
+interface AvailabilityResponse {
+  blocks: AvailabilityBlockApi[];
+  bookings: BookingApi[];
+  weekly_hours: Record<string, string[]>;
+}
 
-const morningSlots: TimeSlot[] = [
-  { id: "09:00", label: "09:00 AM", period: "MORNING" },
-  { id: "10:00", label: "10:00 AM", period: "MORNING" },
-  { id: "11:30", label: "11:30 AM", period: "MORNING" },
-  { id: "12:00", label: "12:00 PM", period: "MORNING" },
-];
+const WEEKDAY_KEYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
-const afternoonSlots: TimeSlot[] = [
-  { id: "14:00", label: "02:00 PM", period: "AFTERNOON" },
-  { id: "15:30", label: "03:30 PM", period: "AFTERNOON" },
-  { id: "16:00", label: "04:00 PM", period: "AFTERNOON" },
-  { id: "17:00", label: "05:00 PM", period: "AFTERNOON" },
-];
+const SLOT_STEP_MINUTES = 30;
 
-const professionals: Professional[] = [
-  {
-    id: 1,
-    name: "Dra. Elena Rodríguez",
-    role: "Especialista principal · 8 años exp.",
-    image:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuDHlpypTJLBDZGOsrcf59gDBZbAncEkdHrCED_WevgVyJ1rLsxPkhgtvKtdzbyAuXVU_lLuapDrUGGymov6y54nWkh7sF-aP1l3_DQz9pUYo_1HFEt54XQWOVszPFcmBc2wyX6jWXdvOZ0w5gdqS81SyjIozfMQpTfDZQBpVDCnbiwJy_k5YPEhZHAjTw7CNlVWEXk_p6l39dFf5ZKb4HkPpiMVxheYlvqr8m_xmCnOJwGLfHYhn-Osrnx1raY_OLTzxDN0Kqje6uA8",
-  },
-  {
-    id: 2,
-    name: "Marcus Chen",
-    role: "Terapeuta senior · 5 años exp.",
-    image:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuDKnfmWzWtE7tSPdkptauU-WOcL1hfrf3xiGR5pBkndxhBNE8EXIwPDxLDN2-HmOW1fhJ1rkuoMZBnhCBZbjpJpbPy9Gl1R-TAAyc-v4zeUcQB83XLQ18LFK_iSzMKDg_oHtQ0PN6Eefk4kh5uZnG1faeB_DnZNrnVuHGyh83gvi7xG78SVzZL_HCpkw6to_zcDlffgBMLPV6HbN4kB63a4v4RENOqbcxquZdC1dFN25TJMw5P-JhlCB-k2AhJLeXTdek2DBpPu6kCL",
-  },
-];
+function parseClock(value: string): { hour: number; minute: number } {
+  const [h, m] = value.split(":").map((n) => parseInt(n, 10));
+  return { hour: h || 0, minute: m || 0 };
+}
 
-const fallbackBusiness: Business = {
-  id: 1,
-  name: "The Serene Sanctuary",
-  image:
-    "https://lh3.googleusercontent.com/aida-public/AB6AXuCp1LOOTi8ivMkLiI_svhIzR5CQ4mkK43VkZcn6m-EUPKfanibK_8vkqsftaFOOT7Lb5LCvwHzXs9AXZuB9cfAk-oorrB_D2KR3SiNebXGXphBXvNOzlcKi_wgLUA5hXF1kbOdUWpvX3uquTYXHkOTRig2LPlQgizCeqs_6gU0r33OCvJstvDuafSjDHKBTmfnoRFFRPQdM5tChWiWGhRoOEgwUOUiMBXZ6mDsB3RjjKIL2MzPXEuJqU_Tv5d0ufFq0PNDZv8E-mRZ2",
-  imageAlt: "Interior minimalista de spa moderno",
-  category: "Bienestar y Spa",
-  distance: "0.8 km de distancia",
-  rating: 4.9,
-  availability: "Hoy a las 2:30 PM",
-  available: true,
-  bookingTitle: "Masaje de tejido profundo",
-  duration: "60 min",
-  price: 60,
-};
+function formatSlotLabel(hour: number, minute: number) {
+  const period = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+  return `${String(displayHour).padStart(2, "0")}:${String(minute).padStart(2, "0")} ${period}`;
+}
+
+function rangesOverlap(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
+  return aStart < bEnd && aEnd > bStart;
+}
+
+/**
+ * Builds the list of bookable time slots for a given date, based on the
+ * business' (or service's) weekly_hours windows, the service duration,
+ * and existing blocks/bookings that would make a slot unavailable.
+ * Mirrors the overlap logic the backend uses in business_is_available /
+ * schedule_allows_slot so the UI doesn't offer slots the backend will reject.
+ */
+function buildSlotsForDate(
+  date: Date,
+  weeklyHours: Record<string, string[]> | undefined,
+  durationMinutes: number,
+  blocks: AvailabilityBlockApi[],
+  bookings: BookingApi[],
+): TimeSlot[] {
+  if (!weeklyHours) return [];
+
+  const dayKey = WEEKDAY_KEYS[(date.getDay() + 6) % 7]; // getDay(): 0=Sun -> map to monday-first
+  const windows = weeklyHours[dayKey] || [];
+  if (windows.length < 2 || windows.length % 2 !== 0) return [];
+
+  const busyRanges = [
+    ...blocks.map((b) => ({ start: new Date(b.start_at), end: new Date(b.end_at) })),
+    ...bookings
+      .filter((b) => !["canceled", "rejected"].includes(b.status))
+      .map((b) => ({ start: new Date(b.start_at), end: new Date(b.end_at) })),
+  ];
+
+  const slots: TimeSlot[] = [];
+
+  for (let i = 0; i < windows.length; i += 2) {
+    const start = parseClock(windows[i]);
+    const end = parseClock(windows[i + 1]);
+
+    const windowStart = new Date(date);
+    windowStart.setHours(start.hour, start.minute, 0, 0);
+    const windowEnd = new Date(date);
+    windowEnd.setHours(end.hour, end.minute, 0, 0);
+
+    let cursor = new Date(windowStart);
+    while (true) {
+      const slotEnd = new Date(cursor.getTime() + durationMinutes * 60000);
+      if (slotEnd > windowEnd) break;
+
+      const isBusy = busyRanges.some((range) =>
+        rangesOverlap(cursor, slotEnd, range.start, range.end),
+      );
+
+      if (!isBusy) {
+        const hour = cursor.getHours();
+        slots.push({
+          id: `${cursor.getHours()}:${cursor.getMinutes()}`,
+          label: formatSlotLabel(cursor.getHours(), cursor.getMinutes()),
+          hour: cursor.getHours(),
+          minute: cursor.getMinutes(),
+          period: hour < 12 ? "MORNING" : "AFTERNOON",
+        });
+      }
+
+      cursor = new Date(cursor.getTime() + SLOT_STEP_MINUTES * 60000);
+    }
+  }
+
+  return slots;
+}
+
+function getToken() {
+  const session = localStorage.getItem("zylo_session");
+  if (!session) return null;
+  try {
+    return JSON.parse(session).token;
+  } catch {
+    return null;
+  }
+}
+
+async function authFetch(url: string, options: RequestInit = {}) {
+  const token = getToken();
+  if (!token) throw new Error("NO_TOKEN");
+  return fetch(url, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+}
 
 function formatDateKey(date: Date) {
   const year = date.getFullYear();
@@ -102,16 +175,53 @@ function formatDateKey(date: Date) {
 }
 
 const Booking: React.FC = () => {
+  const { id: businessIdFromUrl } = useParams<{ id: string }>();
   const location = useLocation();
   const navigate = useNavigate();
-  const business: Business = location.state?.business || fallbackBusiness;
 
-  const [selectedDateIndex, setSelectedDateIndex] = useState(1);
-  const [selectedTime, setSelectedTime] = useState<TimeSlot | null>(morningSlots[2]);
-  const [selectedProfessional, setSelectedProfessional] = useState<number>(1);
+  const state = (location.state || {}) as {
+    business?: Business;
+    services?: Service[];
+    team?: TeamMember[];
+    preselectedServiceId?: string;
+  };
+
+  const business = state.business;
+  const services = useMemo(() => state.services ?? [], [state.services]);
+  const team = useMemo(() => state.team ?? [], [state.team]);
+
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(
+    state.preselectedServiceId ?? (services.length === 1 ? services[0].id : null),
+  );
+  const [selectedProfessionalId, setSelectedProfessionalId] = useState<string | null>(null);
+  const [selectedDateIndex, setSelectedDateIndex] = useState(0);
+  const [selectedTime, setSelectedTime] = useState<TimeSlot | null>(null);
+  const [notes, setNotes] = useState("");
+
+  const [availability, setAvailability] = useState<AvailabilityResponse | null>(null);
+  const [availabilityLoading, setAvailabilityLoading] = useState(true);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
+
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"card" | "cash">("card");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load real availability (existing blocks + bookings + weekly_hours) so
+  // the slots offered actually match what the backend will accept.
+  useEffect(() => {
+    if (!business?.id) return;
+    setAvailabilityLoading(true);
+    setAvailabilityError(null);
+    fetch(`${API_BASE}/businesses/${business.id}/availability`)
+      .then((res) => {
+        if (!res.ok) throw new Error("No se pudo cargar la disponibilidad del negocio");
+        return res.json();
+      })
+      .then((data: AvailabilityResponse) => setAvailability(data))
+      .catch((e) => setAvailabilityError(e.message))
+      .finally(() => setAvailabilityLoading(false));
+  }, [business?.id]);
 
   const baseDate = new Date();
   const days = Array.from({ length: 6 }, (_, index) => {
@@ -127,57 +237,137 @@ const Booking: React.FC = () => {
         day: "numeric",
         month: "long",
       }),
+      raw: date,
     };
   });
 
-  const selectedPro = professionals.find((p) => p.id === selectedProfessional);
+  const selectedService = services.find((s) => s.id === selectedServiceId) || null;
+
+  // Only professionals assigned to the selected service can be chosen,
+  // matching the backend rule in POST /bookings.
+  const availableProfessionals: TeamMember[] = useMemo(() => {
+    if (!selectedService) return [];
+    const allowedIds = new Set((selectedService.professionals || []).map((p) => p.id));
+    return team.filter((member) => allowedIds.has(member.id));
+  }, [selectedService, team]);
+
+  const selectedProfessional = availableProfessionals.find((p) => p.id === selectedProfessionalId) || null;
+
+  // Service-specific schedule takes priority; otherwise fall back to the
+  // business' general weekly_hours, same precedence as the backend's
+  // service_allows_slot().
+  const effectiveWeeklyHours = useMemo(() => {
+    if (selectedService?.weekly_hours && Object.keys(selectedService.weekly_hours).length > 0) {
+      return selectedService.weekly_hours;
+    }
+    return availability?.weekly_hours;
+  }, [selectedService, availability]);
+
+  const slotsForSelectedDate = useMemo(() => {
+    if (!selectedService || !availability) return [];
+    const date = days[selectedDateIndex]?.raw;
+    if (!date) return [];
+    return buildSlotsForDate(
+      date,
+      effectiveWeeklyHours,
+      selectedService.duration_minutes,
+      availability.blocks,
+      availability.bookings,
+    );
+  }, [selectedService, availability, effectiveWeeklyHours, selectedDateIndex]);
+
+  const morningSlotsForDate = slotsForSelectedDate.filter((s) => s.period === "MORNING");
+  const afternoonSlotsForDate = slotsForSelectedDate.filter((s) => s.period === "AFTERNOON");
+
+  const handleSelectService = (serviceId: string) => {
+    setSelectedServiceId(serviceId);
+    setSelectedProfessionalId(null);
+    setSelectedTime(null);
+    setError(null);
+  };
+
+  const handleSelectDate = (index: number) => {
+    setSelectedDateIndex(index);
+    setSelectedTime(null);
+  };
+
+  if (!business || services.length === 0) {
+    return (
+      <div className="bg-[#f9f6f5] text-[#2f2f2e] min-h-screen">
+        <HeaderUser />
+        <main className="max-w-3xl mx-auto px-6 pt-28 pb-8 text-center">
+          <p className="text-lg font-semibold mb-4">
+            No se encontró información del negocio para reservar.
+          </p>
+          <p className="text-sm text-[#7a7877] mb-6">
+            Vuelve al perfil del negocio y selecciona "Reservar" o un servicio específico.
+          </p>
+          <button
+            onClick={() => navigate(businessIdFromUrl ? `/business/${businessIdFromUrl}` : "/home")}
+            className="text-sm font-semibold text-[#ab2d00] hover:underline"
+          >
+            ← Volver al negocio
+          </button>
+        </main>
+      </div>
+    );
+  }
 
   const handleOpenModal = () => {
-    if (!selectedTime || !selectedPro) return;
+    setError(null);
+    if (!selectedService) {
+      setError("Selecciona un servicio");
+      return;
+    }
+    if (!selectedProfessional) {
+      setError("Selecciona un profesional");
+      return;
+    }
+    if (!selectedTime) {
+      setError("Selecciona un horario");
+      return;
+    }
     setShowPaymentModal(true);
   };
 
-  const handleConfirmReservation = () => {
-    if (!selectedTime || !selectedPro) return;
+  const handleConfirmReservation = async () => {
+    if (!selectedService || !selectedProfessional || !selectedTime) return;
+
     setIsProcessing(true);
+    setError(null);
 
-    setTimeout(() => {
-      const newAppointment: Appointment = {
-        id: Date.now(),
-        service: business.bookingTitle,
-        businessName: business.name,
-        businessCategory: business.category,
-        professionalName: selectedPro.name,
-        professionalRole: selectedPro.role,
-        date: days[selectedDateIndex].fullDate,
-        time: selectedTime.label,
-        price: business.price,
-        businessImage: business.image,
-        status: "upcoming",
-      };
+    try {
+      const date = days[selectedDateIndex].raw;
+      const startAt = new Date(date);
+      startAt.setHours(selectedTime.hour, selectedTime.minute, 0, 0);
 
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const currentAppointments: Appointment[] = raw ? JSON.parse(raw) : [];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([...currentAppointments, newAppointment]));
+      const res = await authFetch(`${API_BASE}/bookings`, {
+        method: "POST",
+        body: JSON.stringify({
+          business_id: business.id,
+          service_id: selectedService.id,
+          professional_id: selectedProfessional.id,
+          start_at: startAt.toISOString(),
+          notes: notes || undefined,
+        }),
+      });
 
-      try {
-        const session = JSON.parse(localStorage.getItem("zylo_session") || "null");
-        if (session?.email) {
-          scheduleAppointmentReminder(
-            session.email,
-            newAppointment.service,
-            newAppointment.businessName,
-            newAppointment.date,
-            newAppointment.time,
-            newAppointment.id,
-          );
-        }
-      } catch (_) {}
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "No se pudo crear la reserva");
+      }
 
-      setIsProcessing(false);
       setShowPaymentModal(false);
-      navigate("/home");
-    }, 1500);
+      navigate("/home", { state: { bookingConfirmed: true } });
+    } catch (err: any) {
+      if (err.message === "NO_TOKEN") {
+        navigate("/login");
+        return;
+      }
+      setError(err.message || "No se pudo crear la reserva");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -190,31 +380,101 @@ const Booking: React.FC = () => {
           {/* Business Card */}
           <section className="bg-white rounded-3xl shadow-sm p-5 flex flex-col md:flex-row gap-4 items-start md:items-center">
             <div className="w-full md:w-28 h-28 rounded-2xl overflow-hidden shrink-0">
-              <img src={business.image} alt={business.imageAlt} className="w-full h-full object-cover" />
+              <img src={business.image_url} alt={business.name} className="w-full h-full object-cover" />
             </div>
             <div className="flex-1 space-y-2">
               <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#ffe7dd] text-[#c1491c] text-[11px] font-bold uppercase tracking-wide">
-                {business.category}
+                {business.category_name}
               </span>
               <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                 <div>
-                  <h1 className="text-2xl md:text-4xl font-extrabold leading-tight">{business.bookingTitle}</h1>
+                  <h1 className="text-2xl md:text-4xl font-extrabold leading-tight">{business.name}</h1>
                   <p className="text-sm text-[#7a7877] flex flex-wrap items-center gap-2 mt-2">
-                    <span>{business.duration}</span>
-                    <span>•</span>
                     <span className="flex items-center gap-1">
                       <span className="material-symbols-outlined text-sm text-[#ff7851]">star</span>
-                      {business.rating} ({business.rating === 4.9 ? 120 : 98} reseñas)
+                      {business.rating.toFixed(1)} ({business.reviews_count} reseñas)
                     </span>
                   </p>
-                  <p className="text-sm text-[#7a7877] mt-2">{business.name} • {business.distance}</p>
+                  <p className="text-sm text-[#7a7877] mt-2">{business.address}</p>
                 </div>
-                <div className="text-left md:text-right">
-                  <p className="text-sm text-[#7a7877]">Desde</p>
-                  <p className="text-2xl md:text-4xl font-extrabold text-[#d5521b]">${business.price.toFixed(2)}</p>
-                </div>
+                {selectedService && (
+                  <div className="text-left md:text-right">
+                    <p className="text-sm text-[#7a7877]">Servicio elegido</p>
+                    <p className="text-xl md:text-2xl font-extrabold text-[#d5521b]">
+                      S/. {selectedService.price.toFixed(2)}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
+          </section>
+
+          {/* Service Picker */}
+          <section className="bg-white rounded-3xl p-6 shadow-sm">
+            <h2 className="text-lg font-bold mb-1">Elige un servicio</h2>
+            <p className="text-xs text-[#7a7877] mb-4">¿Qué quieres reservar?</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {services.map((service) => {
+                const isActive = service.id === selectedServiceId;
+                return (
+                  <button
+                    key={service.id}
+                    onClick={() => handleSelectService(service.id)}
+                    disabled={service.active === false}
+                    className={`text-left p-4 rounded-2xl border-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                      isActive ? "border-[#d5521b] bg-[#fff4ee]" : "border-transparent bg-[#f5f2f1]"
+                    }`}
+                  >
+                    <div className="flex justify-between items-start gap-2">
+                      <p className="font-bold text-sm">{service.name}</p>
+                      <span className="font-bold text-sm text-[#d5521b] shrink-0">
+                        S/. {service.price.toFixed(2)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#7a7877] mt-1">{service.duration_minutes} min</p>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* Professionals (filtered by selected service) */}
+          <section className="bg-white rounded-3xl p-6 shadow-sm">
+            <h2 className="text-lg font-bold mb-4">Elige un profesional</h2>
+            {!selectedService ? (
+              <p className="text-sm text-[#7a7877]">Primero selecciona un servicio.</p>
+            ) : availableProfessionals.length === 0 ? (
+              <p className="text-sm text-[#7a7877]">
+                Este servicio no tiene profesionales disponibles en este momento.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-4">
+                {availableProfessionals.map((pro) => {
+                  const isActive = pro.id === selectedProfessionalId;
+                  return (
+                    <button
+                      key={pro.id}
+                      onClick={() => setSelectedProfessionalId(pro.id)}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-full border transition-all ${
+                        isActive ? "border-[#d5521b] bg-[#fff4ee]" : "border-transparent bg-[#f5f2f1]"
+                      }`}
+                    >
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
+                        <img
+                          src={pro.image || "https://placehold.co/100x100?text=%20"}
+                          alt={pro.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-bold">{pro.name}</p>
+                        {pro.role && <p className="text-[11px] text-[#7a7877]">{pro.role}</p>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </section>
 
           {/* Date Picker */}
@@ -224,11 +484,6 @@ const Booking: React.FC = () => {
                 <h2 className="text-lg font-bold">Selecciona una fecha</h2>
                 <p className="text-xs text-[#7a7877]">Elige el día que prefieras para tu sesión</p>
               </div>
-              <div className="flex gap-2 text-[#7a7877]">
-                <button className="w-8 h-8 rounded-full bg-[#f2eeec] flex items-center justify-center">
-                  <span className="material-symbols-outlined text-sm">calendar_month</span>
-                </button>
-              </div>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-2">
               {days.map((d, index) => {
@@ -236,7 +491,7 @@ const Booking: React.FC = () => {
                 return (
                   <button
                     key={d.fullDate}
-                    onClick={() => setSelectedDateIndex(index)}
+                    onClick={() => handleSelectDate(index)}
                     className={`w-16 h-20 rounded-2xl flex flex-col items-center justify-center text-sm font-semibold transition-all shrink-0 ${
                       isActive ? "bg-[#ff7851] text-white shadow-md" : "bg-[#f5f2f1] text-[#5a5857]"
                     }`}
@@ -253,82 +508,92 @@ const Booking: React.FC = () => {
           {/* Time Slots */}
           <section className="bg-white rounded-3xl p-6 shadow-sm space-y-4">
             <h2 className="text-lg font-bold mb-2">Horarios disponibles</h2>
-            <div>
-              <p className="text-xs font-bold text-[#7a7877] mb-2">MAÑANA</p>
-              <div className="flex flex-wrap gap-3">
-                {morningSlots.map((slot) => {
-                  const isActive = selectedTime?.id === slot.id;
-                  return (
-                    <button
-                      key={slot.id}
-                      onClick={() => setSelectedTime(slot)}
-                      className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
-                        isActive
-                          ? "border-2 border-[#d5521b] text-[#d5521b] bg-[#ffe7dd]"
-                          : "bg-[#f5f2f1] text-[#5a5857]"
-                      }`}
-                    >
-                      {slot.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-bold text-[#7a7877] mb-2">TARDE</p>
-              <div className="flex flex-wrap gap-3">
-                {afternoonSlots.map((slot) => {
-                  const isActive = selectedTime?.id === slot.id;
-                  return (
-                    <button
-                      key={slot.id}
-                      onClick={() => setSelectedTime(slot)}
-                      className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
-                        isActive
-                          ? "border-2 border-[#d5521b] text-[#d5521b] bg-[#ffe7dd]"
-                          : "bg-[#f5f2f1] text-[#5a5857]"
-                      }`}
-                    >
-                      {slot.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+
+            {!selectedService ? (
+              <p className="text-sm text-[#7a7877]">Primero selecciona un servicio.</p>
+            ) : availabilityLoading ? (
+              <p className="text-sm text-[#7a7877]">Cargando horarios disponibles...</p>
+            ) : availabilityError ? (
+              <p className="text-sm text-[#a02323]">{availabilityError}</p>
+            ) : slotsForSelectedDate.length === 0 ? (
+              <p className="text-sm text-[#7a7877]">
+                No hay horarios disponibles para este día. Prueba otra fecha.
+              </p>
+            ) : (
+              <>
+                {morningSlotsForDate.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold text-[#7a7877] mb-2">MAÑANA</p>
+                    <div className="flex flex-wrap gap-3">
+                      {morningSlotsForDate.map((slot) => {
+                        const isActive = selectedTime?.id === slot.id;
+                        return (
+                          <button
+                            key={slot.id}
+                            onClick={() => setSelectedTime(slot)}
+                            className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+                              isActive
+                                ? "border-2 border-[#d5521b] text-[#d5521b] bg-[#ffe7dd]"
+                                : "bg-[#f5f2f1] text-[#5a5857]"
+                            }`}
+                          >
+                            {slot.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {afternoonSlotsForDate.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold text-[#7a7877] mb-2">TARDE</p>
+                    <div className="flex flex-wrap gap-3">
+                      {afternoonSlotsForDate.map((slot) => {
+                        const isActive = selectedTime?.id === slot.id;
+                        return (
+                          <button
+                            key={slot.id}
+                            onClick={() => setSelectedTime(slot)}
+                            className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+                              isActive
+                                ? "border-2 border-[#d5521b] text-[#d5521b] bg-[#ffe7dd]"
+                                : "bg-[#f5f2f1] text-[#5a5857]"
+                            }`}
+                          >
+                            {slot.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </section>
 
-          {/* Professionals */}
+          {/* Notes */}
           <section className="bg-white rounded-3xl p-6 shadow-sm">
-            <h2 className="text-lg font-bold mb-4">Elige un profesional</h2>
-            <div className="flex flex-wrap gap-4">
-              {professionals.map((pro) => {
-                const isActive = pro.id === selectedProfessional;
-                return (
-                  <button
-                    key={pro.id}
-                    onClick={() => setSelectedProfessional(pro.id)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-full border transition-all ${
-                      isActive ? "border-[#d5521b] bg-[#fff4ee]" : "border-transparent bg-[#f5f2f1]"
-                    }`}
-                  >
-                    <div className="w-10 h-10 rounded-full overflow-hidden">
-                      <img src={pro.image} alt={pro.name} className="w-full h-full object-cover" />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-sm font-bold">{pro.name}</p>
-                      <p className="text-[11px] text-[#7a7877]">{pro.role}</p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+            <h2 className="text-lg font-bold mb-2">Notas (opcional)</h2>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Algo que el negocio deba saber antes de tu cita..."
+              className="w-full border border-[#eee] rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#ff7851] resize-none"
+              rows={3}
+            />
           </section>
+
+          {error && (
+            <div className="bg-[#fde2e2] text-[#a02323] px-4 py-3 rounded-xl text-sm">
+              {error}
+            </div>
+          )}
 
           <button
-            onClick={() => navigate("/home")}
+            onClick={() => navigate(`/business/${business.id}`)}
             className="text-sm font-semibold text-[#ab2d00] hover:underline"
           >
-            ← Volver al inicio
+            ← Volver al negocio
           </button>
         </div>
 
@@ -339,7 +604,7 @@ const Booking: React.FC = () => {
             <div className="space-y-3 text-sm">
               <div className="flex justify-between gap-4">
                 <span className="text-[#7a7877]">Servicio</span>
-                <span className="font-semibold text-right">{business.bookingTitle}</span>
+                <span className="font-semibold text-right">{selectedService?.name || "—"}</span>
               </div>
               <div className="flex justify-between gap-4">
                 <span className="text-[#7a7877]">Fecha</span>
@@ -347,18 +612,20 @@ const Booking: React.FC = () => {
               </div>
               <div className="flex justify-between gap-4">
                 <span className="text-[#7a7877]">Hora</span>
-                <span className="font-semibold text-right">{selectedTime?.label}</span>
+                <span className="font-semibold text-right">{selectedTime?.label || "—"}</span>
               </div>
               <div className="flex justify-between gap-4">
                 <span className="text-[#7a7877]">Especialista</span>
-                <span className="font-semibold text-right">{selectedPro?.name}</span>
+                <span className="font-semibold text-right">{selectedProfessional?.name || "—"}</span>
               </div>
             </div>
             <div className="mt-6 pt-4 border-t border-[#eee1da] space-y-3">
               <div className="flex justify-between items-end">
                 <div>
                   <p className="text-xs text-[#7a7877] font-semibold">PRECIO TOTAL</p>
-                  <p className="text-2xl font-extrabold">${business.price.toFixed(2)}</p>
+                  <p className="text-2xl font-extrabold">
+                    S/. {selectedService ? selectedService.price.toFixed(2) : "0.00"}
+                  </p>
                 </div>
                 <span className="px-3 py-1 text-[11px] rounded-full bg-[#ffe7dd] text-[#c1491c] font-semibold">
                   Incl. impuestos
@@ -391,24 +658,22 @@ const Booking: React.FC = () => {
       </main>
 
       {/* Payment Modal */}
-      {showPaymentModal && (
+      {showPaymentModal && selectedService && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-          {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => !isProcessing && setShowPaymentModal(false)}
           />
 
-          {/* Modal */}
-          <div className="relative bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden"
-            style={{ animation: "slideUp 0.3s ease-out" }}>
-
-            {/* Header */}
+          <div
+            className="relative bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden"
+            style={{ animation: "slideUp 0.3s ease-out" }}
+          >
             <div className="bg-gradient-to-br from-[#d5521b] to-[#ff7851] p-6 text-white">
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-widest opacity-80">Confirmar pago</p>
-                  <p className="text-3xl font-extrabold mt-1">${business.price.toFixed(2)}</p>
+                  <p className="text-3xl font-extrabold mt-1">S/. {selectedService.price.toFixed(2)}</p>
                 </div>
                 <button
                   onClick={() => !isProcessing && setShowPaymentModal(false)}
@@ -418,11 +683,10 @@ const Booking: React.FC = () => {
                 </button>
               </div>
 
-              {/* Quick summary */}
               <div className="mt-4 bg-white/15 rounded-2xl p-3 space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span className="opacity-80">Servicio</span>
-                  <span className="font-semibold">{business.bookingTitle}</span>
+                  <span className="font-semibold">{selectedService.name}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="opacity-80">Fecha</span>
@@ -434,12 +698,11 @@ const Booking: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="opacity-80">Especialista</span>
-                  <span className="font-semibold">{selectedPro?.name}</span>
+                  <span className="font-semibold">{selectedProfessional?.name}</span>
                 </div>
               </div>
             </div>
 
-            {/* Payment method */}
             <div className="p-6 space-y-4">
               <p className="text-sm font-bold text-[#2f2f2e]">Método de pago</p>
 
@@ -450,9 +713,11 @@ const Booking: React.FC = () => {
                     paymentMethod === "card" ? "border-[#d5521b] bg-[#fff4ee]" : "border-[#eee] bg-[#f9f6f5]"
                   }`}
                 >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    paymentMethod === "card" ? "bg-[#d5521b] text-white" : "bg-[#eee] text-[#7a7877]"
-                  }`}>
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      paymentMethod === "card" ? "bg-[#d5521b] text-white" : "bg-[#eee] text-[#7a7877]"
+                    }`}
+                  >
                     <span className="material-symbols-outlined text-sm">credit_card</span>
                   </div>
                   <div className="text-left">
@@ -470,9 +735,11 @@ const Booking: React.FC = () => {
                     paymentMethod === "cash" ? "border-[#d5521b] bg-[#fff4ee]" : "border-[#eee] bg-[#f9f6f5]"
                   }`}
                 >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    paymentMethod === "cash" ? "bg-[#d5521b] text-white" : "bg-[#eee] text-[#7a7877]"
-                  }`}>
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      paymentMethod === "cash" ? "bg-[#d5521b] text-white" : "bg-[#eee] text-[#7a7877]"
+                    }`}
+                  >
                     <span className="material-symbols-outlined text-sm">payments</span>
                   </div>
                   <div className="text-left">
@@ -484,6 +751,12 @@ const Booking: React.FC = () => {
                   )}
                 </button>
               </div>
+
+              {error && (
+                <div className="bg-[#fde2e2] text-[#a02323] px-4 py-3 rounded-xl text-sm">
+                  {error}
+                </div>
+              )}
 
               <button
                 onClick={handleConfirmReservation}
@@ -501,7 +774,7 @@ const Booking: React.FC = () => {
                 ) : (
                   <>
                     <span className="material-symbols-outlined text-sm">lock</span>
-                    Pagar ${business.price.toFixed(2)}
+                    Confirmar reserva
                   </>
                 )}
               </button>
