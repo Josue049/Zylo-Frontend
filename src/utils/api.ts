@@ -21,4 +21,4 @@ export async function apiFetch(path: string, options = {}) {
 }
 
 // Uso en cualquier página:
-const data = await apiFetch("/reservations");
+// const data = await apiFetch("/reservations");
