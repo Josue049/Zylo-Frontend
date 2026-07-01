@@ -44,6 +44,15 @@ interface TeamMember {
   image?: string;
 }
 
+interface Review {
+  id: string;
+  user_id: string;
+  business_id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+}
+
 function getToken() {
   const session = localStorage.getItem("zylo_session");
 
@@ -51,6 +60,18 @@ function getToken() {
 
   try {
     return JSON.parse(session).token;
+  } catch {
+    return null;
+  }
+}
+
+function getAccountType(): string | null {
+  const session = localStorage.getItem("zylo_session");
+
+  if (!session) return null;
+
+  try {
+    return JSON.parse(session).accountType ?? null;
   } catch {
     return null;
   }
@@ -81,11 +102,18 @@ export default function BusinessProfile() {
   const [services, setServices] = useState<Service[]>([]);
   const [gallery, setGallery] = useState<string[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
 
   const [loading, setLoading] = useState(true);
 
   const [isFavorite, setIsFavorite] = useState(false);
   const [loadingFavorite, setLoadingFavorite] = useState(false);
+
+  // Review form state
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   // =========================
   // LOAD BUSINESS
@@ -100,11 +128,13 @@ export default function BusinessProfile() {
           servicesResponse,
           galleryResponse,
           teamResponse,
+          reviewsResponse,
         ] = await Promise.all([
           fetch(`${API_BASE}/businesses/${id}`),
           fetch(`${API_BASE}/businesses/${id}/services`),
           fetch(`${API_BASE}/businesses/${id}/gallery`),
           fetch(`${API_BASE}/businesses/${id}/team`),
+          fetch(`${API_BASE}/businesses/${id}/reviews`),
         ]);
 
         if (!businessResponse.ok) throw new Error("Business not found");
@@ -113,11 +143,15 @@ export default function BusinessProfile() {
         const servicesData = await servicesResponse.json();
         const galleryData = await galleryResponse.json();
         const teamData = await teamResponse.json();
+        const reviewsData = reviewsResponse.ok
+          ? await reviewsResponse.json()
+          : { items: [] };
 
         setBusiness(businessData.business);
         setServices(servicesData.items ?? []);
         setGallery(galleryData.items ?? []);
         setTeam(teamData.items ?? []);
+        setReviews(reviewsData.items ?? []);
       } catch (err) {
         console.error(err);
         setBusiness(null);
@@ -185,6 +219,58 @@ export default function BusinessProfile() {
     }
   }
 
+  // =========================
+  // REVIEWS
+  // =========================
+  async function refreshReviews() {
+    if (!business) return;
+    try {
+      const res = await fetch(`${API_BASE}/businesses/${business.id}/reviews`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setReviews(data.items ?? []);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function submitReview() {
+    if (!business) return;
+
+    if (!getToken()) {
+      navigate("/login");
+      return;
+    }
+
+    setSubmittingReview(true);
+    setReviewError(null);
+
+    try {
+      const res = await authFetch(`${API_BASE}/businesses/${business.id}/reviews`, {
+        method: "POST",
+        body: JSON.stringify({
+          rating: reviewRating,
+          comment: reviewComment.trim() || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.detail || "No se pudo enviar la reseña");
+      }
+
+      const data = await res.json();
+      setBusiness(data.business);
+      setReviewComment("");
+      await refreshReviews();
+    } catch (err: any) {
+      console.error(err);
+      setReviewError(err.message || "Error al enviar la reseña");
+    } finally {
+      setSubmittingReview(false);
+    }
+  }
+
   const handleMessage = () => {
     if (!business) return;
 
@@ -247,6 +333,9 @@ export default function BusinessProfile() {
       </div>
     );
   }
+
+  const accountType = getAccountType();
+  const isOwnBusiness = accountType === "business" && getToken();
 
   return (
     <div className="bg-[#f9f6f5] text-[#2f2f2e] font-['Inter'] min-h-screen pb-32">
@@ -330,40 +419,51 @@ export default function BusinessProfile() {
           </div>
 
           <div className="flex gap-3">
-            <button
-              onClick={toggleFavorite}
-              disabled={loadingFavorite}
-              className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 border-2 disabled:opacity-60 ${
-                isFavorite
-                  ? "bg-[#ff7851]/10 border-[#ab2d00] text-[#ab2d00]"
-                  : "bg-[#dfdcdc] border-transparent text-[#2f2f2e]"
-              }`}
-            >
-              <span
-                className="material-symbols-outlined text-2xl"
-                style={{
-                  fontVariationSettings: isFavorite ? "'FILL' 1" : "'FILL' 0",
-                }}
+            {isOwnBusiness ? (
+              <button
+                onClick={() => navigate("/business-profile")}
+                className="bg-[#dfdcdc] text-[#2f2f2e] px-8 py-4 rounded-full font-bold"
               >
-                favorite
-              </span>
-            </button>
+                Editar mi negocio
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={toggleFavorite}
+                  disabled={loadingFavorite}
+                  className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 border-2 disabled:opacity-60 ${
+                    isFavorite
+                      ? "bg-[#ff7851]/10 border-[#ab2d00] text-[#ab2d00]"
+                      : "bg-[#dfdcdc] border-transparent text-[#2f2f2e]"
+                  }`}
+                >
+                  <span
+                    className="material-symbols-outlined text-2xl"
+                    style={{
+                      fontVariationSettings: isFavorite ? "'FILL' 1" : "'FILL' 0",
+                    }}
+                  >
+                    favorite
+                  </span>
+                </button>
 
-            <button
-              onClick={handleMessage}
-              className="bg-[#dfdcdc] text-[#2f2f2e] px-8 py-4 rounded-full font-bold"
-            >
-              Mensaje
-            </button>
+                <button
+                  onClick={handleMessage}
+                  className="bg-[#dfdcdc] text-[#2f2f2e] px-8 py-4 rounded-full font-bold"
+                >
+                  Mensaje
+                </button>
 
-            <button
-              onClick={handleBooking}
-              disabled={services.length === 0}
-              className="bg-gradient-to-br from-[#ab2d00] to-[#ff7851] text-white px-8 py-4 rounded-full font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              title={services.length === 0 ? "Este negocio aún no tiene servicios" : undefined}
-            >
-              Reservar
-            </button>
+                <button
+                  onClick={handleBooking}
+                  disabled={services.length === 0}
+                  className="bg-gradient-to-br from-[#ab2d00] to-[#ff7851] text-white px-8 py-4 rounded-full font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={services.length === 0 ? "Este negocio aún no tiene servicios" : undefined}
+                >
+                  Reservar
+                </button>
+              </>
+            )}
           </div>
         </section>
 
@@ -488,6 +588,106 @@ export default function BusinessProfile() {
                       <p className="text-xs text-center text-[#5c5b5b]">
                         {member.role}
                       </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* ---------------- RESEÑAS ---------------- */}
+            <section>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="font-['Plus_Jakarta_Sans'] text-2xl font-bold">
+                  Reseñas
+                </h2>
+
+                <span className="text-sm text-[#5c5b5b]">
+                  {reviews.length} reseña(s)
+                </span>
+              </div>
+
+              {!isOwnBusiness && (
+                <div className="bg-white rounded-xl p-6 mb-6 space-y-4">
+                  <h3 className="font-bold">Deja tu reseña</h3>
+
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setReviewRating(star)}
+                        className="p-0.5"
+                      >
+                        <span
+                          className="material-symbols-outlined text-2xl text-[#ab2d00]"
+                          style={{
+                            fontVariationSettings:
+                              star <= reviewRating ? "'FILL' 1" : "'FILL' 0",
+                          }}
+                        >
+                          star
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <textarea
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    placeholder="Cuéntanos tu experiencia (opcional)"
+                    className="w-full rounded-xl border border-[#dfdcdc] p-3 text-sm outline-none focus:ring-2 focus:ring-[#ff785133]"
+                    rows={3}
+                  />
+
+                  {reviewError && (
+                    <p className="text-sm text-red-600">{reviewError}</p>
+                  )}
+
+                  <button
+                    onClick={submitReview}
+                    disabled={submittingReview}
+                    className="bg-gradient-to-br from-[#ab2d00] to-[#ff7851] text-white px-6 py-3 rounded-full font-bold disabled:opacity-50"
+                  >
+                    {submittingReview ? "Enviando..." : "Enviar reseña"}
+                  </button>
+                </div>
+              )}
+
+              {reviews.length === 0 ? (
+                <div className="bg-white rounded-xl p-6 text-center text-[#5c5b5b]">
+                  Este negocio todavía no tiene reseñas.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {reviews.map((review) => (
+                    <div key={review.id} className="bg-white rounded-xl p-6">
+                      <div className="flex items-center gap-1 mb-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <span
+                            key={star}
+                            className="material-symbols-outlined text-base text-[#ab2d00]"
+                            style={{
+                              fontVariationSettings:
+                                star <= review.rating ? "'FILL' 1" : "'FILL' 0",
+                            }}
+                          >
+                            star
+                          </span>
+                        ))}
+
+                        <span className="text-xs text-[#5c5b5b] ml-2">
+                          {new Date(review.created_at).toLocaleDateString(
+                            "es-ES",
+                            { year: "numeric", month: "long", day: "numeric" },
+                          )}
+                        </span>
+                      </div>
+
+                      {review.comment && (
+                        <p className="text-sm text-[#5c5b5b]">
+                          {review.comment}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>

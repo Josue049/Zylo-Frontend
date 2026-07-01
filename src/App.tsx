@@ -12,6 +12,7 @@ import Messages from "./pages/Messages";
 import Favorites from "./pages/User/Favorites";
 import BusinessMessages from "./pages/Business/BusinessMessages";
 import Booking from "./pages/Business/Booking";
+import BusinessProfileSelf from "./pages/Business/BusinessProfileSelf"; // ajusta el path
 
 export default function AppRouter() {
   return (
@@ -19,6 +20,7 @@ export default function AppRouter() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/business-profile" element={<BusinessProfileSelf />} />
       <Route path="/home" element={<Home />} />
       <Route path="/profile" element={<Profile />} />
       <Route path="/businessProfile/:id" element={<BusinessProfile />} />

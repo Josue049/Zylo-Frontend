@@ -1,4 +1,5 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useCurrentUser, getSession } from "../../hooks/userCurrentUser";
 import HeaderUser from "../../components/user/HeaderUser";
 
@@ -14,6 +15,16 @@ const footerLinks = ["Privacidad", "Términos", "Soporte", "Empleo"];
 export default function UserProfile() {
   const { user, loading, updateUserPhoto } = useCurrentUser();
   const session = getSession();
+  const navigate = useNavigate();
+
+  // Business accounts get their own management page (connects to
+  // /businesses/me, /businesses/me/gallery and /businesses/me/reviews)
+  // instead of the regular client profile below.
+  useEffect(() => {
+    if (session?.accountType === "business") {
+      navigate("/business-profile", { replace: true });
+    }
+  }, [session?.accountType, navigate]);
 
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -109,6 +120,18 @@ export default function UserProfile() {
     localStorage.removeItem(SESSION_KEY);
     window.location.href = "/login";
   };
+
+  // ── Redirecting to business profile ──
+  if (session?.accountType === "business") {
+    return (
+      <div className="bg-surface text-on-surface min-h-screen font-body flex flex-col items-center justify-center gap-4">
+        <div className="w-10 h-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+        <p className="text-on-surface-variant font-medium">
+          Cargando panel de negocio...
+        </p>
+      </div>
+    );
+  }
 
   // ── Loading ──
   if (loading) {
