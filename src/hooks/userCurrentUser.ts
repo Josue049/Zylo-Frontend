@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
+import { apiFetch } from '../utils/api'
 
-const BASE_URL = 'https://backend-zylo.vercel.app'
 const SESSION_KEY = 'zylo_session'
 
 export interface CurrentUser {
@@ -12,14 +12,16 @@ export interface CurrentUser {
   created_at?: string
   createdAt?: string
   location?: string
-  photo?: string
+  photo_url?: string
 }
 
 export interface Session {
   token: string
   email: string
   name: string
+  userId: string
   accountType: 'user' | 'business'
+  businessId?: string | null
 }
 
 export function getSession(): Session | null {
@@ -40,27 +42,17 @@ export function useCurrentUser() {
       return
     }
 
-    fetch(`${BASE_URL}/auth/me`, {
-      headers: {
-        Authorization: `Bearer ${session.token}`,
-        'Content-Type': 'application/json',
-      },
-    })
-      .then(res => {
-        if (res.status === 401) {
-          localStorage.removeItem(SESSION_KEY)
-          window.location.href = '/login'
-          throw new Error('Token expirado')
-        }
-        if (!res.ok) throw new Error('Error del servidor')
-        return res.json()
-      })
-      .then(data => setUser(data))
+    apiFetch('/auth/me')
+      .then(data => setUser(data.user ?? data))
       .catch(err => {
         // Si el endpoint /auth/me no existe aún, usa los datos de sesión como fallback
         const session = getSession()
         if (session) {
-          setUser({ name: session.name, email: session.email, accountType: session.accountType })
+          setUser({
+            name: session.name,
+            email: session.email,
+            accountType: session.accountType,
+          })
         } else {
           setError(err.message)
         }
@@ -69,7 +61,7 @@ export function useCurrentUser() {
   }, [])
 
   const updateUserPhoto = (photo: string) => {
-    setUser(prev => prev ? { ...prev, photo } : prev)
+    setUser(prev => prev ? { ...prev, photo_url: photo } : prev)
   }
 
   return { user, loading, error, updateUserPhoto }

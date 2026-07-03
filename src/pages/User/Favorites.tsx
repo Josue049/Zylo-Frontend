@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import HeaderUser from "../../components/user/HeaderUser";
-
-const API_BASE = "https://backend-zylo.vercel.app";
+import { apiFetch } from "../../utils/api";
 
 interface FavoriteBusiness {
   id: string;
@@ -10,28 +9,6 @@ interface FavoriteBusiness {
   rating: number;
   image_url: string;
   address: string;
-}
-
-function getToken() {
-  const session = localStorage.getItem("zylo_session");
-  if (!session) return null;
-  try {
-    return JSON.parse(session).token;
-  } catch {
-    return null;
-  }
-}
-
-async function authFetch(url: string, options: RequestInit = {}) {
-  const token = getToken();
-  return fetch(url, {
-    ...options,
-    headers: {
-      ...(options.headers || {}),
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
 }
 
 export default function Favorites() {
@@ -52,9 +29,7 @@ export default function Favorites() {
     async function loadFavorites() {
       try {
         setLoading(true);
-        const res = await authFetch(`${API_BASE}/users/me/favorites`);
-        if (!res.ok) throw new Error("Failed to load favorites");
-        const data = await res.json();
+        const data = await apiFetch("/users/me/favorites");
         if (!cancelled) {
           setFavorites(data.items || []);
         }
@@ -85,10 +60,9 @@ export default function Favorites() {
     setFavorites((prev) => prev.filter((f) => f.id !== id));
 
     try {
-      const res = await authFetch(`${API_BASE}/users/me/favorites/${id}`, {
+      await apiFetch(`/users/me/favorites/${id}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error("Failed to remove");
     } catch (err) {
       console.error(err);
       // Rollback to snapshot on failure
@@ -113,7 +87,10 @@ export default function Favorites() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {[1, 2, 3].map((n) => (
-              <div key={n} className="bg-white rounded-xl overflow-hidden shadow-sm">
+              <div
+                key={n}
+                className="bg-white rounded-xl overflow-hidden shadow-sm"
+              >
                 <div className="h-44 bg-gray-200 animate-pulse" />
                 <div className="p-5 space-y-3">
                   <div className="h-5 w-3/4 bg-gray-200 rounded animate-pulse" />
@@ -136,14 +113,17 @@ export default function Favorites() {
         <div className="mb-8">
           <h2 className="text-3xl font-extrabold">Mis Favoritos</h2>
           <p className="text-[#5c5b5b] mt-1">
-            {favorites.length} negocio{favorites.length !== 1 ? "s" : ""} guardado{favorites.length !== 1 ? "s" : ""}
+            {favorites.length} negocio{favorites.length !== 1 ? "s" : ""}{" "}
+            guardado{favorites.length !== 1 ? "s" : ""}
           </p>
         </div>
 
         {favorites.length === 0 ? (
           <div className="text-center py-24 text-[#5c5b5b]">
             <p className="text-lg font-medium">No tienes favoritos aún</p>
-            <p className="text-sm mt-1">Guarda negocios que te interesen para verlos aquí.</p>
+            <p className="text-sm mt-1">
+              Guarda negocios que te interesen para verlos aquí.
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -153,7 +133,9 @@ export default function Favorites() {
                 <div
                   key={biz.id}
                   className={`bg-white rounded-xl overflow-hidden shadow-sm transition-opacity duration-200 ${
-                    isRemoving ? "opacity-50 pointer-events-none" : "opacity-100"
+                    isRemoving
+                      ? "opacity-50 pointer-events-none"
+                      : "opacity-100"
                   }`}
                 >
                   {/* Imagen */}
@@ -185,7 +167,9 @@ export default function Favorites() {
                   {/* Info */}
                   <div className="p-5">
                     <h3 className="font-bold text-lg">{biz.name}</h3>
-                    <p className="text-sm text-[#5c5b5b]">{biz.category_name}</p>
+                    <p className="text-sm text-[#5c5b5b]">
+                      {biz.category_name}
+                    </p>
                     <p className="text-sm text-[#5c5b5b] mt-2">{biz.address}</p>
                     <div className="mt-3 flex justify-between items-center">
                       <span className="text-sm">⭐ {biz.rating}</span>

@@ -1,192 +1,150 @@
-// ── Types ──────────────────────────────────────────────────────────────────
+import { apiFetch } from "../utils/api";
+
+export interface Session {
+  token: string;
+  email: string;
+  name: string;
+  userId?: string;
+  accountType?: "user" | "business";
+  businessId?: string | null;
+}
 
 export interface Message {
-  id: string
-  conversationId: string
-  senderId: string    // email del remitente
-  senderName: string
-  text: string
-  timestamp: string   // ISO string
-  read: boolean
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  senderPhoto?: string | null;
+  text: string;
+  timestamp: string;
+  read: boolean;
 }
 
 export interface Conversation {
-  id: string
-  userId: string       // email del usuario cliente
-  userName: string
-  userPhoto?: string
-  businessId: string   // email del negocio (ej: serene@zylo.com)
-  businessName: string
-  businessCategory: string
-  businessPhoto: string
-  lastMessage: string
-  lastTimestamp: string
-  unreadCount: number        // no leídos para el USUARIO
-  businessUnreadCount: number // no leídos para el NEGOCIO
+  id: string;
+  userId: string;
+  userName: string;
+  userPhoto?: string | null;
+  businessId: string;
+  businessName: string;
+  businessCategory: string;
+  businessPhoto: string;
+  lastMessage: string;
+  lastTimestamp: string;
+  unreadCount: number;
+  businessUnreadCount: number;
 }
 
-// ── Storage keys ────────────────────────────────────────────────────────────
+const SESSION_KEY = "zylo_session";
 
-const CONVERSATIONS_KEY = 'zylo_conversations'
-const MESSAGES_KEY      = 'zylo_messages'
-const SESSION_KEY       = 'zylo_session'
-
-// ── Session helpers ─────────────────────────────────────────────────────────
-
-export function getSession(): { email: string; name: string; accountType?: string } | null {
-  try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null') }
-  catch { return null }
-}
-
-// ── Conversation CRUD ────────────────────────────────────────────────────────
-
-export function getAllConversations(): Conversation[] {
-  try { return JSON.parse(localStorage.getItem(CONVERSATIONS_KEY) || '[]') }
-  catch { return [] }
-}
-
-export function saveAllConversations(conversations: Conversation[]): void {
-  localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(conversations))
-}
-
-/** Conversaciones donde el usuario es el cliente */
-export function getUserConversations(userEmail: string): Conversation[] {
-  return getAllConversations().filter(
-    c => c.userId.toLowerCase() === userEmail.toLowerCase()
-  )
-}
-
-/** Conversaciones donde el negocio es el receptor (vista del dueño) */
-export function getBusinessConversations(businessEmail: string): Conversation[] {
-  return getAllConversations().filter(
-    c => c.businessId.toLowerCase() === businessEmail.toLowerCase()
-  )
-}
-
-/** Busca o crea una conversación entre usuario y negocio */
-export function getOrCreateConversation(
-  userId: string,
-  userName: string,
-  userPhoto: string | undefined,
-  businessId: string,      // email del negocio
-  businessName: string,
-  businessCategory: string,
-  businessPhoto: string
-): Conversation {
-  const all = getAllConversations()
-  const existing = all.find(
-    c =>
-      c.userId.toLowerCase() === userId.toLowerCase() &&
-      c.businessId.toLowerCase() === businessId.toLowerCase()
-  )
-  if (existing) return existing
-
-  const newConv: Conversation = {
-    id: `conv_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-    userId,
-    userName,
-    userPhoto,
-    businessId,
-    businessName,
-    businessCategory,
-    businessPhoto,
-    lastMessage: '',
-    lastTimestamp: new Date().toISOString(),
-    unreadCount: 0,
-    businessUnreadCount: 0,
+export function getSession(): Session | null {
+  try {
+    return JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+  } catch {
+    return null;
   }
-
-  saveAllConversations([...all, newConv])
-  return newConv
 }
 
-// ── Messages CRUD ────────────────────────────────────────────────────────────
-
-export function getAllMessages(): Message[] {
-  try { return JSON.parse(localStorage.getItem(MESSAGES_KEY) || '[]') }
-  catch { return [] }
+function mapMessage(raw: any): Message {
+  return {
+    id: raw.id,
+    conversationId: raw.conversation_id ?? raw.conversationId,
+    senderId: raw.sender_user_id ?? raw.senderId,
+    senderName: raw.sender_name ?? raw.senderName ?? "Usuario",
+    senderPhoto: raw.sender_photo ?? raw.senderPhoto ?? null,
+    text: raw.text ?? raw.content ?? "",
+    timestamp: raw.timestamp ?? raw.created_at,
+    read: Boolean(raw.read ?? true),
+  };
 }
 
-export function getConversationMessages(conversationId: string): Message[] {
-  return getAllMessages()
-    .filter(m => m.conversationId === conversationId)
-    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+function mapConversation(raw: any): Conversation {
+  const lastMessage = raw.last_message ? mapMessage(raw.last_message) : null;
+  const businessCategory = raw.business_category_name ?? raw.business_category ?? raw.category_name ?? raw.subject ?? "";
+  return {
+    id: raw.id,
+    userId: raw.user_id,
+    userName: raw.user_name ?? "Cliente",
+    userPhoto: raw.user_photo ?? null,
+    businessId: raw.business_id,
+    businessName: raw.business_name ?? "Negocio",
+    businessCategory,
+    businessPhoto: raw.business_photo ?? "https://placehold.co/96x96?text=Z",
+    lastMessage: lastMessage?.text ?? raw.last_message?.content ?? raw.last_message?.text ?? "",
+    lastTimestamp: lastMessage?.timestamp ?? raw.updated_at ?? raw.created_at,
+    unreadCount: Number(raw.unread_count ?? 0),
+    businessUnreadCount: Number(raw.unread_count ?? 0),
+  };
 }
 
-export function sendMessage(
+export async function getUserConversations(): Promise<Conversation[]> {
+  const data = await apiFetch("/conversations");
+  return (data.items || []).map(mapConversation);
+}
+
+export async function getBusinessConversations(): Promise<Conversation[]> {
+  const data = await apiFetch("/conversations");
+  return (data.items || []).map(mapConversation);
+}
+
+export async function getConversationMessages(conversationId: string): Promise<Message[]> {
+  const data = await apiFetch(`/conversations/${conversationId}/messages`);
+  return (data.items || []).map(mapMessage).sort((a: Message, b: Message) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+}
+
+export async function getOrCreateConversation(
+  _userId: string,
+  _userName: string,
+  _userPhoto: string | undefined,
+  businessId: string,
+  _businessName: string,
+  _businessCategory: string,
+  _businessPhoto: string,
+): Promise<Conversation> {
+  const data = await apiFetch("/conversations", {
+    method: "POST",
+    body: JSON.stringify({ business_id: businessId }),
+  });
+  return mapConversation(data.conversation);
+}
+
+export async function sendMessage(
   conversationId: string,
   senderId: string,
   senderName: string,
   text: string,
-  senderType: 'user' | 'business' = 'user'
-): Message {
-  const msg: Message = {
-    id: `msg_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-    conversationId,
-    senderId,
-    senderName,
-    text: text.trim(),
-    timestamp: new Date().toISOString(),
-    read: false,
-  }
-
-  const allMsgs = getAllMessages()
-  localStorage.setItem(MESSAGES_KEY, JSON.stringify([...allMsgs, msg]))
-
-  // Actualizar lastMessage + incrementar unread del lado contrario
-  const convs = getAllConversations()
-  const updated = convs.map(c => {
-    if (c.id !== conversationId) return c
-    return {
-      ...c,
-      lastMessage: text.trim(),
-      lastTimestamp: msg.timestamp,
-      // Si envía el usuario → sube businessUnreadCount; si envía el negocio → sube unreadCount
-      unreadCount: senderType === 'business' ? c.unreadCount + 1 : c.unreadCount,
-      businessUnreadCount: senderType === 'user' ? c.businessUnreadCount + 1 : c.businessUnreadCount,
-    }
-  })
-  saveAllConversations(updated)
-
-  return msg
+  senderType: "user" | "business" = "user",
+): Promise<Message> {
+  void senderId;
+  void senderName;
+  void senderType;
+  const data = await apiFetch(`/conversations/${conversationId}/messages`, {
+    method: "POST",
+    body: JSON.stringify({ content: text.trim() }),
+  });
+  return mapMessage(data.message);
 }
 
-/** Marcar como leídos los mensajes que NO envió el lector */
-export function markConversationAsRead(
+export async function markConversationAsRead(
   conversationId: string,
   readerEmail: string,
-  readerType: 'user' | 'business'
-): void {
-  const all = getAllMessages()
-  const updated = all.map(m =>
-    m.conversationId === conversationId && m.senderId !== readerEmail
-      ? { ...m, read: true }
-      : m
-  )
-  localStorage.setItem(MESSAGES_KEY, JSON.stringify(updated))
-
-  // Resetear el contador correspondiente
-  const convs = getAllConversations().map(c => {
-    if (c.id !== conversationId) return c
-    return {
-      ...c,
-      unreadCount: readerType === 'user' ? 0 : c.unreadCount,
-      businessUnreadCount: readerType === 'business' ? 0 : c.businessUnreadCount,
-    }
-  })
-  saveAllConversations(convs)
+  readerType: "user" | "business",
+): Promise<void> {
+  void readerEmail;
+  void readerType;
+  await apiFetch(`/conversations/${conversationId}/read`, {
+    method: "PATCH",
+  });
 }
 
-// ── Time formatting ──────────────────────────────────────────────────────────
-
 export function formatMessageTime(isoString: string): string {
-  const date = new Date(isoString)
-  const now  = new Date()
-  const diffMs   = now.getTime() - date.getTime()
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  const date = new Date(isoString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffDays === 0)  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  if (diffDays === 1)  return 'Ayer'
-  if (diffDays < 7)    return date.toLocaleDateString([], { weekday: 'short' })
-  return date.toLocaleDateString([], { day: '2-digit', month: 'short' })
+  if (diffDays === 0) return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  if (diffDays === 1) return "Ayer";
+  if (diffDays < 7) return date.toLocaleDateString([], { weekday: "short" });
+  return date.toLocaleDateString([], { day: "2-digit", month: "short" });
 }

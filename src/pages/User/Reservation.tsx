@@ -1,9 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import HeaderUser from "../../components/user/HeaderUser";
-
-// AJUSTAR si tu base URL o el nombre de la key del token son distintos.
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-const TOKEN_KEY = "token";
+import { apiFetch } from "../../utils/api";
 
 interface Appointment {
   id: string;
@@ -17,11 +14,6 @@ interface Appointment {
   price: number;
   businessImage: string;
   status: "upcoming" | "cancelled";
-}
-
-function authHeaders(): HeadersInit {
-  const token = localStorage.getItem(TOKEN_KEY);
-  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 // El backend devuelve booking_payload(booking, db). Mapeamos los campos que
@@ -99,17 +91,15 @@ export default function Reservations() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/bookings`, {
-        headers: { ...authHeaders() },
-      });
-      if (!res.ok) {
-        throw new Error(`Error ${res.status} al cargar las reservas`);
-      }
-      const data = await res.json();
+      const data = await apiFetch("/bookings");
       const list: Appointment[] = (data.bookings || []).map(mapBookingFromApi);
       setAppointments(list);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudieron cargar las reservas");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudieron cargar las reservas",
+      );
     } finally {
       setLoading(false);
     }
@@ -141,7 +131,8 @@ export default function Reservations() {
     const startOffset = (firstDayOfMonth.getDay() + 6) % 7;
     const daysInMonth = lastDayOfMonth.getDate();
 
-    const days: Array<{ date: Date; currentMonth: boolean; dateKey: string }> = [];
+    const days: Array<{ date: Date; currentMonth: boolean; dateKey: string }> =
+      [];
 
     for (let i = startOffset; i > 0; i -= 1) {
       const d = new Date(year, month, 1 - i);
@@ -162,29 +153,33 @@ export default function Reservations() {
   }, [currentMonth]);
 
   const goPrevMonth = () => {
-    setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+    setCurrentMonth(
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1),
+    );
   };
 
   const goNextMonth = () => {
-    setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+    setCurrentMonth(
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1),
+    );
   };
 
   const cancelAppointment = async (id: string) => {
     setCancellingId(id);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/bookings/${id}/cancel`, {
+      await apiFetch(`/bookings/${id}/cancel`, {
         method: "PATCH",
-        headers: { ...authHeaders() },
       });
-      if (!res.ok) {
-        throw new Error(`Error ${res.status} al cancelar la reserva`);
-      }
       setAppointments((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, status: "cancelled" } : item)),
+        prev.map((item) =>
+          item.id === id ? { ...item, status: "cancelled" } : item,
+        ),
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo cancelar la reserva");
+      setError(
+        err instanceof Error ? err.message : "No se pudo cancelar la reserva",
+      );
     } finally {
       setCancellingId(null);
     }
@@ -197,7 +192,9 @@ export default function Reservations() {
       <main className="max-w-7xl mx-auto px-6 pt-28 pb-10">
         <section className="mb-8 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold text-[#d5521b] mb-2">Mis reservas</p>
+            <p className="text-sm font-semibold text-[#d5521b] mb-2">
+              Mis reservas
+            </p>
             <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight">
               Calendario de citas
             </h1>
@@ -237,7 +234,8 @@ export default function Reservations() {
                   Agenda mensual
                 </p>
                 <h2 className="text-2xl font-extrabold mt-1">
-                  {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+                  {monthNames[currentMonth.getMonth()]}{" "}
+                  {currentMonth.getFullYear()}
                 </h2>
               </div>
               <div className="flex items-center gap-2">
@@ -245,13 +243,17 @@ export default function Reservations() {
                   onClick={goPrevMonth}
                   className="w-11 h-11 rounded-full bg-[#f6f1ef] hover:bg-[#efe7e3] transition-colors flex items-center justify-center"
                 >
-                  <span className="material-symbols-outlined">chevron_left</span>
+                  <span className="material-symbols-outlined">
+                    chevron_left
+                  </span>
                 </button>
                 <button
                   onClick={goNextMonth}
                   className="w-11 h-11 rounded-full bg-[#f6f1ef] hover:bg-[#efe7e3] transition-colors flex items-center justify-center"
                 >
-                  <span className="material-symbols-outlined">chevron_right</span>
+                  <span className="material-symbols-outlined">
+                    chevron_right
+                  </span>
                 </button>
               </div>
             </div>
@@ -275,13 +277,17 @@ export default function Reservations() {
                     onClick={goPrevMonth}
                     className="w-11 h-11 rounded-full bg-[#f6f1ef] hover:bg-[#efe7e3] transition-colors flex items-center justify-center"
                   >
-                    <span className="material-symbols-outlined">chevron_left</span>
+                    <span className="material-symbols-outlined">
+                      chevron_left
+                    </span>
                   </button>
                   <button
                     onClick={goNextMonth}
                     className="w-11 h-11 rounded-full bg-[#f6f1ef] hover:bg-[#efe7e3] transition-colors flex items-center justify-center"
                   >
-                    <span className="material-symbols-outlined">chevron_right</span>
+                    <span className="material-symbols-outlined">
+                      chevron_right
+                    </span>
                   </button>
                 </div>
               </div>
@@ -313,8 +319,8 @@ export default function Reservations() {
                             isSelected
                               ? "bg-gradient-to-br from-[#d5521b] to-[#ff7851] text-white border-transparent shadow-lg shadow-[#d5521b]/20"
                               : item.currentMonth
-                              ? "bg-[#fcfbfa] border-[#f1e6e0] hover:bg-[#faf4f1]"
-                              : "bg-[#f6f1ef] border-transparent text-[#b2aaa7]"
+                                ? "bg-[#fcfbfa] border-[#f1e6e0] hover:bg-[#faf4f1]"
+                                : "bg-[#f6f1ef] border-transparent text-[#b2aaa7]"
                           }`}
                         >
                           <div className="flex items-center justify-between">
@@ -335,11 +341,16 @@ export default function Reservations() {
                               <>
                                 <div
                                   className={`text-[11px] font-semibold ${
-                                    isSelected ? "text-white/90" : "text-[#7a7877]"
+                                    isSelected
+                                      ? "text-white/90"
+                                      : "text-[#7a7877]"
                                   }`}
                                 >
-                                  {appointmentsByDate[item.dateKey].length} reserva
-                                  {appointmentsByDate[item.dateKey].length > 1 ? "s" : ""}
+                                  {appointmentsByDate[item.dateKey].length}{" "}
+                                  reserva
+                                  {appointmentsByDate[item.dateKey].length > 1
+                                    ? "s"
+                                    : ""}
                                 </div>
                                 <div className="flex gap-1 flex-wrap">
                                   {appointmentsByDate[item.dateKey]
@@ -375,14 +386,18 @@ export default function Reservations() {
                 Día seleccionado
               </p>
               <h2 className="text-2xl font-extrabold">
-                {new Date(`${selectedDate}T00:00:00`).toLocaleDateString("es-PE", {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                })}
+                {new Date(`${selectedDate}T00:00:00`).toLocaleDateString(
+                  "es-PE",
+                  {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                  },
+                )}
               </h2>
               <p className="text-sm text-[#7a7877] mt-3">
-                Aquí puedes revisar el detalle de tus citas programadas y cancelarlas.
+                Aquí puedes revisar el detalle de tus citas programadas y
+                cancelarlas.
               </p>
             </section>
 
@@ -396,7 +411,9 @@ export default function Reservations() {
 
               {loading ? (
                 <div className="rounded-3xl bg-[#faf6f4] border border-dashed border-[#eadcd5] p-6 text-center">
-                  <p className="text-sm font-semibold text-[#5e5a58]">Cargando reservas…</p>
+                  <p className="text-sm font-semibold text-[#5e5a58]">
+                    Cargando reservas…
+                  </p>
                 </div>
               ) : selectedDayAppointments.length === 0 ? (
                 <div className="rounded-3xl bg-[#faf6f4] border border-dashed border-[#eadcd5] p-6 text-center">
@@ -404,7 +421,8 @@ export default function Reservations() {
                     No tienes reservas este día
                   </p>
                   <p className="text-xs text-[#9a9491] mt-2">
-                    Cuando confirmes una cita desde un business profile, aparecerá aquí automáticamente.
+                    Cuando confirmes una cita desde un business profile,
+                    aparecerá aquí automáticamente.
                   </p>
                 </div>
               ) : (
@@ -432,7 +450,9 @@ export default function Reservations() {
                                   : "bg-[#e9f7ef] text-[#2c7a4b]"
                               }`}
                             >
-                              {appointment.status === "cancelled" ? "Cancelada" : "Activa"}
+                              {appointment.status === "cancelled"
+                                ? "Cancelada"
+                                : "Activa"}
                             </span>
                           </div>
                           <h4 className="text-base font-extrabold leading-tight">
@@ -442,16 +462,25 @@ export default function Reservations() {
                             {appointment.businessName}
                           </p>
                           <p className="text-sm text-[#7a7877]">
-                            {appointment.professionalName} · {appointment.professionalRole}
+                            {appointment.professionalName} ·{" "}
+                            {appointment.professionalRole}
                           </p>
                           <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
                             <div className="rounded-2xl bg-[#f6f1ef] px-3 py-2">
-                              <p className="text-[11px] text-[#9a9491] font-bold uppercase">Hora</p>
-                              <p className="font-semibold">{appointment.time}</p>
+                              <p className="text-[11px] text-[#9a9491] font-bold uppercase">
+                                Hora
+                              </p>
+                              <p className="font-semibold">
+                                {appointment.time}
+                              </p>
                             </div>
                             <div className="rounded-2xl bg-[#f6f1ef] px-3 py-2">
-                              <p className="text-[11px] text-[#9a9491] font-bold uppercase">Precio</p>
-                              <p className="font-semibold">${appointment.price.toFixed(2)}</p>
+                              <p className="text-[11px] text-[#9a9491] font-bold uppercase">
+                                Precio
+                              </p>
+                              <p className="font-semibold">
+                                ${appointment.price.toFixed(2)}
+                              </p>
                             </div>
                           </div>
                           <div className="flex flex-wrap gap-3 mt-4">
@@ -463,7 +492,9 @@ export default function Reservations() {
                               }
                               className="px-4 py-2 rounded-full bg-[#2f2f2e] text-white text-sm font-bold disabled:opacity-40"
                             >
-                              {cancellingId === appointment.id ? "Cancelando…" : "Eliminar reserva"}
+                              {cancellingId === appointment.id
+                                ? "Cancelando…"
+                                : "Eliminar reserva"}
                             </button>
                           </div>
                         </div>

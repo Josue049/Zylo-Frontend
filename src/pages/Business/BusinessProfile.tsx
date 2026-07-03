@@ -2,8 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import HeaderUser from "../../components/user/HeaderUser";
 import { getSession, getOrCreateConversation } from "../../data/messages";
-
-const API_BASE = "https://backend-zylo.vercel.app";
+import { apiFetch } from "../../utils/api";
 
 interface Business {
   id: string;
@@ -47,22 +46,13 @@ interface TeamMember {
 interface Review {
   id: string;
   user_id: string;
+  user_name: string | null;
+  user_email: string | null;
+  user_photo: string | null;
   business_id: string;
   rating: number;
   comment: string | null;
   created_at: string;
-}
-
-function getToken() {
-  const session = localStorage.getItem("zylo_session");
-
-  if (!session) return null;
-
-  try {
-    return JSON.parse(session).token;
-  } catch {
-    return null;
-  }
 }
 
 function getAccountType(): string | null {
@@ -75,23 +65,6 @@ function getAccountType(): string | null {
   } catch {
     return null;
   }
-}
-
-async function authFetch(url: string, options: RequestInit = {}) {
-  const token = getToken();
-
-  if (!token) {
-    throw new Error("NO_TOKEN");
-  }
-
-  return fetch(url, {
-    ...options,
-    headers: {
-      ...(options.headers || {}),
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
 }
 
 export default function BusinessProfile() {
@@ -123,29 +96,14 @@ export default function BusinessProfile() {
       try {
         setLoading(true);
 
-        const [
-          businessResponse,
-          servicesResponse,
-          galleryResponse,
-          teamResponse,
-          reviewsResponse,
-        ] = await Promise.all([
-          fetch(`${API_BASE}/businesses/${id}`),
-          fetch(`${API_BASE}/businesses/${id}/services`),
-          fetch(`${API_BASE}/businesses/${id}/gallery`),
-          fetch(`${API_BASE}/businesses/${id}/team`),
-          fetch(`${API_BASE}/businesses/${id}/reviews`),
-        ]);
-
-        if (!businessResponse.ok) throw new Error("Business not found");
-
-        const businessData = await businessResponse.json();
-        const servicesData = await servicesResponse.json();
-        const galleryData = await galleryResponse.json();
-        const teamData = await teamResponse.json();
-        const reviewsData = reviewsResponse.ok
-          ? await reviewsResponse.json()
-          : { items: [] };
+        const [businessData, servicesData, galleryData, teamData, reviewsData] =
+          await Promise.all([
+            apiFetch(`/businesses/${id}`),
+            apiFetch(`/businesses/${id}/services`),
+            apiFetch(`/businesses/${id}/gallery`),
+            apiFetch(`/businesses/${id}/team`),
+            apiFetch(`/businesses/${id}/reviews`),
+          ]);
 
         setBusiness(businessData.business);
         setServices(servicesData.items ?? []);
@@ -172,16 +130,10 @@ export default function BusinessProfile() {
     const businessId = String(business.id);
 
     async function loadFavorite() {
-      const token = getToken();
-      if (!token) return;
-
       try {
         setLoadingFavorite(true);
 
-        const response = await authFetch(`${API_BASE}/users/me/favorites`);
-        if (!response.ok) return;
-
-        const data = await response.json();
+        const data = await apiFetch("/users/me/favorites");
         const favorites = Array.isArray(data.items) ? data.items : [];
 
         setIsFavorite(
@@ -207,12 +159,9 @@ export default function BusinessProfile() {
     setIsFavorite(nextState);
 
     try {
-      const res = await authFetch(`${API_BASE}/users/me/favorites/${business.id}`, {
+      await apiFetch(`/users/me/favorites/${business.id}`, {
         method: nextState ? "POST" : "DELETE",
       });
-      if (!res.ok) {
-        throw new Error("No se pudo actualizar favoritos");
-      }
     } catch (err) {
       console.error(err);
       setIsFavorite(!nextState);
@@ -225,9 +174,7 @@ export default function BusinessProfile() {
   async function refreshReviews() {
     if (!business) return;
     try {
-      const res = await fetch(`${API_BASE}/businesses/${business.id}/reviews`);
-      if (!res.ok) return;
-      const data = await res.json();
+      const data = await apiFetch(`/businesses/${business.id}/reviews`);
       setReviews(data.items ?? []);
     } catch (err) {
       console.error(err);
@@ -237,7 +184,7 @@ export default function BusinessProfile() {
   async function submitReview() {
     if (!business) return;
 
-    if (!getToken()) {
+    if (!getSession()) {
       navigate("/login");
       return;
     }
@@ -246,20 +193,13 @@ export default function BusinessProfile() {
     setReviewError(null);
 
     try {
-      const res = await authFetch(`${API_BASE}/businesses/${business.id}/reviews`, {
+      const data = await apiFetch(`/businesses/${business.id}/reviews`, {
         method: "POST",
         body: JSON.stringify({
           rating: reviewRating,
           comment: reviewComment.trim() || null,
         }),
       });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => null);
-        throw new Error(errData?.detail || "No se pudo enviar la reseña");
-      }
-
-      const data = await res.json();
       setBusiness(data.business);
       setReviewComment("");
       await refreshReviews();
@@ -271,7 +211,35 @@ export default function BusinessProfile() {
     }
   }
 
-  const handleMessage = () => {
+  async function deleteReview(reviewId: string) {
+    if (!business) return;
+
+    const session = getSession();
+    if (!session) {
+      navigate("/login");
+      return;
+    }
+
+    if (!window.confirm("¿Eliminar esta reseña?")) {
+      return;
+    }
+
+    try {
+      const data = await apiFetch(
+        `/businesses/${business.id}/reviews/${reviewId}`,
+        {
+          method: "DELETE",
+        },
+      );
+      setBusiness(data.business);
+      await refreshReviews();
+    } catch (err: any) {
+      console.error(err);
+      setReviewError(err.message || "Error al eliminar la reseña");
+    }
+  }
+
+  const handleMessage = async () => {
     if (!business) return;
 
     const session = getSession();
@@ -281,11 +249,11 @@ export default function BusinessProfile() {
       return;
     }
 
-    const conversation = getOrCreateConversation(
+    const conversation = await getOrCreateConversation(
       session.email,
       session.name,
       undefined,
-      business.email,
+      business.id,
       business.name,
       business.category_name,
       business.image_url,
@@ -297,7 +265,7 @@ export default function BusinessProfile() {
   const handleBooking = () => {
     if (!business) return;
 
-    if (!getToken()) {
+    if (!getSession()) {
       navigate("/login");
       return;
     }
@@ -335,13 +303,14 @@ export default function BusinessProfile() {
   }
 
   const accountType = getAccountType();
-  const isOwnBusiness = accountType === "business" && getToken();
+  const isOwnBusiness = accountType === "business" && !!getSession();
+  const currentSession = getSession();
 
   return (
     <div className="bg-[#f9f6f5] text-[#2f2f2e] font-['Inter'] min-h-screen pb-32">
-      <HeaderUser />
+      <HeaderUser />      
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+      <main className="pt-24 pb-36 px-6 max-w-7xl mx-auto">
         {/* Galería */}
         <section className="grid grid-cols-1 md:grid-cols-4 gap-4 h-[400px] md:h-[500px]">
           <div className="md:col-span-2 md:row-span-2 rounded-xl overflow-hidden relative group">
@@ -440,7 +409,9 @@ export default function BusinessProfile() {
                   <span
                     className="material-symbols-outlined text-2xl"
                     style={{
-                      fontVariationSettings: isFavorite ? "'FILL' 1" : "'FILL' 0",
+                      fontVariationSettings: isFavorite
+                        ? "'FILL' 1"
+                        : "'FILL' 0",
                     }}
                   >
                     favorite
@@ -458,7 +429,11 @@ export default function BusinessProfile() {
                   onClick={handleBooking}
                   disabled={services.length === 0}
                   className="bg-gradient-to-br from-[#ab2d00] to-[#ff7851] text-white px-8 py-4 rounded-full font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={services.length === 0 ? "Este negocio aún no tiene servicios" : undefined}
+                  title={
+                    services.length === 0
+                      ? "Este negocio aún no tiene servicios"
+                      : undefined
+                  }
                 >
                   Reservar
                 </button>
@@ -502,7 +477,7 @@ export default function BusinessProfile() {
                       key={service.id}
                       onClick={() => {
                         if (!business) return;
-                        if (!getToken()) {
+                        if (!getSession()) {
                           navigate("/login");
                           return;
                         }
@@ -661,26 +636,69 @@ export default function BusinessProfile() {
                 <div className="space-y-4">
                   {reviews.map((review) => (
                     <div key={review.id} className="bg-white rounded-xl p-6">
-                      <div className="flex items-center gap-1 mb-2">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <span
-                            key={star}
-                            className="material-symbols-outlined text-base text-[#ab2d00]"
-                            style={{
-                              fontVariationSettings:
-                                star <= review.rating ? "'FILL' 1" : "'FILL' 0",
-                            }}
-                          >
-                            star
-                          </span>
-                        ))}
+                      <div className="flex items-start justify-between gap-4 mb-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-full overflow-hidden bg-[#f3f0ef] shrink-0">
+                            {review.user_photo ? (
+                              <img
+                                src={review.user_photo}
+                                alt={review.user_name ?? "Usuario"}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-xs font-bold text-[#5c5b5b]">
+                                {review.user_name?.charAt(0)?.toUpperCase() ??
+                                  "?"}
+                              </div>
+                            )}
+                          </div>
 
-                        <span className="text-xs text-[#5c5b5b] ml-2">
-                          {new Date(review.created_at).toLocaleDateString(
-                            "es-ES",
-                            { year: "numeric", month: "long", day: "numeric" },
-                          )}
-                        </span>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm text-[#2f2f2e] truncate">
+                              {review.user_name ?? "Usuario"}
+                            </p>
+                            <div className="flex items-center gap-1">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <span
+                                  key={star}
+                                  className="material-symbols-outlined text-base text-[#ab2d00]"
+                                  style={{
+                                    fontVariationSettings:
+                                      star <= review.rating
+                                        ? "'FILL' 1"
+                                        : "'FILL' 0",
+                                  }}
+                                >
+                                  star
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className="text-xs text-[#5c5b5b]">
+                            {new Date(review.created_at).toLocaleDateString(
+                              "es-ES",
+                              {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              },
+                            )}
+                          </span>
+
+                          {currentSession?.email &&
+                            review.user_email === currentSession.email && (
+                              <button
+                                type="button"
+                                onClick={() => deleteReview(review.id)}
+                                className="text-xs font-semibold text-red-600 hover:text-red-700"
+                              >
+                                Eliminar
+                              </button>
+                            )}
+                        </div>
                       </div>
 
                       {review.comment && (

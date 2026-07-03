@@ -1,18 +1,8 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { apiFetch } from "../../utils/api";
 
 /* ── Types ── */
-interface StoredUser {
-  name: string;
-  email: string;
-  phone: string;
-  passwordHash: string;
-  accountType: "user" | "business";
-  createdAt: string;
-  photo?: string;
-  location?: string;
-}
-
 interface Appointment {
   id: number;
   service: string;
@@ -28,7 +18,6 @@ interface Appointment {
 }
 
 /* ── Storage helpers ── */
-const USERS_KEY = "zylo_users";
 const SESSION_KEY = "zylo_session";
 const APPOINTMENTS_KEY = "zylo_appointments";
 
@@ -40,27 +29,11 @@ function getSession(): { email: string; name: string } | null {
   }
 }
 
-function getAllUsers(): StoredUser[] {
-  try {
-    return JSON.parse(localStorage.getItem(USERS_KEY) || "[]");
-  } catch {
-    return [];
-  }
-}
-
-function getCurrentUser(): StoredUser | null {
-  const session = getSession();
-  if (!session) return null;
-  return (
-    getAllUsers().find(
-      (u) => u.email.toLowerCase() === session.email.toLowerCase(),
-    ) ?? null
-  );
-}
-
 function getAppointments(): Appointment[] {
   try {
-    return JSON.parse(localStorage.getItem(APPOINTMENTS_KEY) || "[]") as Appointment[];
+    return JSON.parse(
+      localStorage.getItem(APPOINTMENTS_KEY) || "[]",
+    ) as Appointment[];
   } catch {
     return [];
   }
@@ -77,19 +50,47 @@ function formatDate(dateTime: string) {
 
 /* ── Component ── */
 export default function Header() {
-  const [user] = useState<StoredUser | null>(() => getCurrentUser());
+  const [displayPhoto, setDisplayPhoto] = useState<string | null>(null);
   const [showReservationsModal, setShowReservationsModal] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
+  const [selectedDate, setSelectedDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
   const [calendarMonth, setCalendarMonth] = useState(
     new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   );
-  const [appointments, setAppointments] = useState<Appointment[]>(() => getAppointments());
+  const [appointments, setAppointments] = useState<Appointment[]>(() =>
+    getAppointments(),
+  );
 
-  const displayPhoto = user?.photo ?? null;
   const currentPath = window.location.pathname;
 
+  useEffect(() => {
+    let active = true;
+
+    async function loadProfile() {
+      try {
+        const data = await apiFetch("/users/me");
+        if (active) {
+          setDisplayPhoto(data.user?.photo_url ?? null);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    loadProfile();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const monthLabel = useMemo(
-    () => calendarMonth.toLocaleDateString("es-ES", { month: "long", year: "numeric" }),
+    () =>
+      calendarMonth.toLocaleDateString("es-ES", {
+        month: "long",
+        year: "numeric",
+      }),
     [calendarMonth],
   );
 
@@ -107,7 +108,10 @@ export default function Header() {
   }, [calendarMonth]);
 
   const appointmentsForSelectedDate = useMemo(
-    () => appointments.filter((a) => a.date === selectedDate && a.status === "upcoming"),
+    () =>
+      appointments.filter(
+        (a) => a.date === selectedDate && a.status === "upcoming",
+      ),
     [appointments, selectedDate],
   );
 
@@ -124,7 +128,10 @@ export default function Header() {
       if (appt.id !== id || appt.status === "cancelled") return appt;
       const timeStr = appt.time.replace(" ", "").toLowerCase();
       const isPM = timeStr.includes("pm");
-      const [hourStr, minuteStr] = timeStr.replace("am", "").replace("pm", "").split(":");
+      const [hourStr, minuteStr] = timeStr
+        .replace("am", "")
+        .replace("pm", "")
+        .split(":");
       let hour = parseInt(hourStr);
       const minute = parseInt(minuteStr);
       if (isPM && hour !== 12) hour += 12;
@@ -135,7 +142,10 @@ export default function Header() {
       return {
         ...appt,
         date: nextDate.toISOString().slice(0, 10),
-        time: nextDate.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }),
+        time: nextDate.toLocaleTimeString("es-ES", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
       };
     }) as Appointment[];
     setAppointments(updated);
@@ -158,24 +168,28 @@ export default function Header() {
             <Link
               to="/home"
               className={`transition-opacity font-semibold ${
-                currentPath === "/home" ? "text-primary" : "text-[#2f2f2e] hover:opacity-80"
+                currentPath === "/home"
+                  ? "text-primary"
+                  : "text-[#2f2f2e] hover:opacity-80"
               }`}
             >
               Explorar
             </Link>
 
-            <button
+            {/* <button
               onClick={() => setShowReservationsModal(true)}
               className="text-[#2f2f2e] hover:opacity-80 transition-opacity font-semibold"
             >
               Reservas
-            </button>
+            </button> */}
 
             {/* ← Favoritos navega a /favorites */}
             <Link
               to="/favorites"
               className={`transition-opacity font-semibold ${
-                currentPath === "/favorites" ? "text-primary" : "text-[#2f2f2e] hover:opacity-80"
+                currentPath === "/favorites"
+                  ? "text-primary"
+                  : "text-[#2f2f2e] hover:opacity-80"
               }`}
             >
               Favoritos
@@ -185,7 +199,11 @@ export default function Header() {
           <div className="w-10 h-10 rounded-full bg-[#e4e2e1] overflow-hidden cursor-pointer active:scale-95 transition-transform">
             <Link to="/profile">
               {displayPhoto ? (
-                <img alt="User Profile" className="w-full h-full object-cover" src={displayPhoto} />
+                <img
+                  alt="User Profile"
+                  className="w-full h-full object-cover"
+                  src={displayPhoto}
+                />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-sm text-gray-500">
                   ?
@@ -224,23 +242,35 @@ export default function Header() {
                       type="button"
                       onClick={() =>
                         setCalendarMonth(
-                          new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1),
+                          new Date(
+                            calendarMonth.getFullYear(),
+                            calendarMonth.getMonth() - 1,
+                            1,
+                          ),
                         )
                       }
                       className="rounded-full bg-white p-2 text-[#2f2f2e] transition hover:bg-[#f3f0ef]"
                     >
-                      <span className="material-symbols-outlined">chevron_left</span>
+                      <span className="material-symbols-outlined">
+                        chevron_left
+                      </span>
                     </button>
                     <button
                       type="button"
                       onClick={() =>
                         setCalendarMonth(
-                          new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1),
+                          new Date(
+                            calendarMonth.getFullYear(),
+                            calendarMonth.getMonth() + 1,
+                            1,
+                          ),
                         )
                       }
                       className="rounded-full bg-white p-2 text-[#2f2f2e] transition hover:bg-[#f3f0ef]"
                     >
-                      <span className="material-symbols-outlined">chevron_right</span>
+                      <span className="material-symbols-outlined">
+                        chevron_right
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -259,13 +289,16 @@ export default function Header() {
 
                 <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold uppercase tracking-[0.24em] text-[#7a7877]">
                   {["Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sa"].map((d) => (
-                    <div key={d} className="py-2">{d}</div>
+                    <div key={d} className="py-2">
+                      {d}
+                    </div>
                   ))}
                 </div>
 
                 <div className="grid grid-cols-7 gap-2 mt-2">
                   {calendarDays.map((day, index) => {
-                    if (day === null) return <div key={`empty-${index}`} className="h-12" />;
+                    if (day === null)
+                      return <div key={`empty-${index}`} className="h-12" />;
                     const dateString = new Date(
                       calendarMonth.getFullYear(),
                       calendarMonth.getMonth(),
@@ -286,8 +319,8 @@ export default function Header() {
                           isSelected
                             ? "bg-primary text-white shadow-lg shadow-primary/20"
                             : hasAppointments
-                            ? "bg-[#ffe7dd] text-[#c1491c]"
-                            : "bg-white text-[#2f2f2e] hover:bg-[#f3f0ef]"
+                              ? "bg-[#ffe7dd] text-[#c1491c]"
+                              : "bg-white text-[#2f2f2e] hover:bg-[#f3f0ef]"
                         }`}
                       >
                         {day}
@@ -325,20 +358,27 @@ export default function Header() {
                 ) : (
                   <div className="space-y-4 max-h-96 overflow-y-auto">
                     {appointmentsForSelectedDate.map((appt) => (
-                      <div key={appt.id} className="rounded-xl border border-[#e4e2e1] bg-white p-4">
+                      <div
+                        key={appt.id}
+                        className="rounded-xl border border-[#e4e2e1] bg-white p-4"
+                      >
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <div>
                             <p className="text-xs uppercase tracking-[0.25em] text-[#7a7877] font-semibold">
                               Confirmada
                             </p>
-                            <h4 className="mt-1 text-base font-bold">{appt.service}</h4>
+                            <h4 className="mt-1 text-base font-bold">
+                              {appt.service}
+                            </h4>
                             <p className="mt-1 text-sm text-[#7a7877]">
                               {appt.businessName} • {appt.professionalName}
                             </p>
                           </div>
                           <div className="text-right">
                             <p className="text-sm font-semibold">{appt.time}</p>
-                            <p className="text-xs text-[#7a7877]">Hora de inicio</p>
+                            <p className="text-xs text-[#7a7877]">
+                              Hora de inicio
+                            </p>
                           </div>
                         </div>
                         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

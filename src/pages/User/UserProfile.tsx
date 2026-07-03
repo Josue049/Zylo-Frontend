@@ -2,10 +2,9 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCurrentUser, getSession } from "../../hooks/userCurrentUser";
 import HeaderUser from "../../components/user/HeaderUser";
+import { apiFetch } from "../../utils/api";
 
 const SESSION_KEY = "zylo_session";
-const BASE_URL = "https://backend-zylo.vercel.app";
-
 const supportLinks = [
   { icon: "help_center", label: "Centro de ayuda" },
   { icon: "support_agent", label: "Contactar soporte" },
@@ -50,16 +49,20 @@ export default function UserProfile() {
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      // Guarda la foto en localStorage como fallback (el backend puede no tener este endpoint)
-      const photo = reader.result as string;
-      updateUserPhoto(photo);
-      const stored = JSON.parse(localStorage.getItem("zylo_photo") || "{}");
-      stored[session?.email ?? ""] = photo;
-      localStorage.setItem("zylo_photo", JSON.stringify(stored));
-    };
-    reader.readAsDataURL(file);
+
+    const formData = new FormData();
+    formData.append("photo", file);
+
+    apiFetch("/users/me/photo", {
+      method: "POST",
+      body: formData,
+    })
+      .then((data) => {
+        updateUserPhoto(data.photo_url ?? data.user?.photo_url ?? null);
+      })
+      .catch((err) => {
+        console.error(err);
+      });
   };
 
   const handleSave = async () => {
@@ -71,20 +74,14 @@ export default function UserProfile() {
 
     try {
       // Intenta actualizar en el backend
-      const res = await fetch(`${BASE_URL}/users/me`, {
+      await apiFetch("/users/me", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.token}`,
-        },
         body: JSON.stringify({
           name: editForm.name.trim(),
           phone: editForm.phone.trim(),
           location: editForm.location.trim(),
         }),
       });
-
-      if (!res.ok) throw new Error("No se pudo guardar");
 
       // Actualiza el nombre en la sesión local
       if (session) {
@@ -165,9 +162,7 @@ export default function UserProfile() {
     );
   }
 
-  // Foto: primero del backend, luego del localStorage (si subió antes)
-  const storedPhotos = JSON.parse(localStorage.getItem("zylo_photo") || "{}");
-  const displayPhoto = user.photo ?? storedPhotos[user.email] ?? null;
+  const displayPhoto = user.photo_url ?? null;
   const initials =
     (user?.name ?? "")
       .split(" ")

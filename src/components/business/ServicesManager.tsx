@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { getSession } from "../../hooks/userCurrentUser";
-
-const BASE_URL = "https://backend-zylo.vercel.app";
+import { apiFetch } from "../../utils/api";
 
 type Service = {
   id: string;
@@ -19,23 +18,6 @@ type TeamMember = {
   role?: string;
 };
 
-async function apiFetch(path: string, options?: RequestInit) {
-  const session = getSession();
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session?.token}`,
-      ...(options?.headers || {}),
-    },
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || "Error del servidor");
-  }
-  return res.json();
-}
-
 export default function ServicesManager() {
   const [services, setServices] = useState<Service[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
@@ -43,7 +25,9 @@ export default function ServicesManager() {
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
   const [duration, setDuration] = useState("30");
-  const [selectedProfessionals, setSelectedProfessionals] = useState<string[]>([]);
+  const [selectedProfessionals, setSelectedProfessionals] = useState<string[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -54,17 +38,9 @@ export default function ServicesManager() {
       setLoading(true);
       try {
         const session = getSession();
-
-        // 1. Get business_id
-        const meRes = await fetch(`${BASE_URL}/auth/me`, {
-          headers: { Authorization: `Bearer ${session?.token}` },
-        });
-        if (!meRes.ok) throw new Error("No se pudo obtener el perfil");
-        const meData = await meRes.json();
-        const businessId = meData.user?.business_id;
+        const businessId = session?.businessId;
         if (!businessId) throw new Error("No se encontró el negocio asociado");
 
-        // 2. Load services and team in parallel
         const [servicesData, teamData] = await Promise.all([
           apiFetch("/businesses/me/services"),
           apiFetch(`/businesses/${businessId}/team`),
@@ -83,7 +59,7 @@ export default function ServicesManager() {
 
   const toggleProfessional = (id: string) => {
     setSelectedProfessionals((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id],
     );
   };
 
@@ -125,7 +101,11 @@ export default function ServicesManager() {
   };
 
   const deleteService = async (id: string) => {
-    if (!window.confirm("¿Seguro que quieres eliminar este servicio? Esta acción no se puede deshacer.")) {
+    if (
+      !window.confirm(
+        "¿Seguro que quieres eliminar este servicio? Esta acción no se puede deshacer.",
+      )
+    ) {
       return;
     }
     setError(null);
@@ -141,7 +121,8 @@ export default function ServicesManager() {
   };
 
   const professionalNames = (service: Service) => {
-    if (!service.professionals || service.professionals.length === 0) return null;
+    if (!service.professionals || service.professionals.length === 0)
+      return null;
     return service.professionals
       .map((p) => team.find((m) => m.id === p.id)?.name || p.id)
       .join(", ");
@@ -149,7 +130,9 @@ export default function ServicesManager() {
 
   return (
     <div className="bg-[#f9f6f5] p-6 rounded-xl space-y-6">
-      <h2 className="font-headline text-2xl font-bold text-[#2f2f2e]">Servicios</h2>
+      <h2 className="font-headline text-2xl font-bold text-[#2f2f2e]">
+        Servicios
+      </h2>
 
       {error && (
         <div className="bg-[#f8d7da] text-[#721c24] px-4 py-3 rounded-lg text-sm">
@@ -194,7 +177,9 @@ export default function ServicesManager() {
             className="bg-primary text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#962700] transition-colors active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? (
-              <span className="material-symbols-outlined animate-spin">progress_activity</span>
+              <span className="material-symbols-outlined animate-spin">
+                progress_activity
+              </span>
             ) : (
               <span className="material-symbols-outlined">add</span>
             )}
@@ -225,11 +210,16 @@ export default function ServicesManager() {
                         : "bg-white text-[#2f2f2e] border-[#e4e2e1] hover:border-primary"
                     }`}
                   >
-                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                    <span
+                      className="material-symbols-outlined"
+                      style={{ fontSize: 16 }}
+                    >
                       {selected ? "check_circle" : "person"}
                     </span>
                     {member.name}
-                    {member.role && <span className="opacity-70">• {member.role}</span>}
+                    {member.role && (
+                      <span className="opacity-70">• {member.role}</span>
+                    )}
                   </button>
                 );
               })}
@@ -241,11 +231,15 @@ export default function ServicesManager() {
       {/* List */}
       {loading ? (
         <div className="flex justify-center py-8">
-          <span className="material-symbols-outlined animate-spin text-primary text-3xl">progress_activity</span>
+          <span className="material-symbols-outlined animate-spin text-primary text-3xl">
+            progress_activity
+          </span>
         </div>
       ) : services.length === 0 ? (
         <div className="text-center py-8 text-on-surface-variant">
-          <span className="material-symbols-outlined text-4xl mb-2 block">spa</span>
+          <span className="material-symbols-outlined text-4xl mb-2 block">
+            spa
+          </span>
           <p>Aún no tienes servicios. ¡Agrega el primero!</p>
         </div>
       ) : (
@@ -257,7 +251,9 @@ export default function ServicesManager() {
             >
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="font-headline text-lg font-bold text-[#2f2f2e]">{s.name}</h3>
+                  <h3 className="font-headline text-lg font-bold text-[#2f2f2e]">
+                    {s.name}
+                  </h3>
                   {s.active === false && (
                     <span className="text-xs bg-[#e4e2e1] text-on-surface-variant px-2 py-0.5 rounded-full">
                       Inactivo
@@ -265,19 +261,28 @@ export default function ServicesManager() {
                   )}
                 </div>
                 {s.description && (
-                  <p className="text-on-surface-variant text-sm">{s.description}</p>
+                  <p className="text-on-surface-variant text-sm">
+                    {s.description}
+                  </p>
                 )}
                 <div className="flex gap-3 mt-1">
                   <p className="text-on-surface-variant text-sm">
                     <span className="font-semibold">S/ {s.price}</span>
                   </p>
                   {s.duration_minutes && (
-                    <p className="text-on-surface-variant text-sm">• {s.duration_minutes} min</p>
+                    <p className="text-on-surface-variant text-sm">
+                      • {s.duration_minutes} min
+                    </p>
                   )}
                 </div>
                 {professionalNames(s) && (
                   <p className="text-on-surface-variant text-xs mt-2 flex items-center gap-1">
-                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>group</span>
+                    <span
+                      className="material-symbols-outlined"
+                      style={{ fontSize: 14 }}
+                    >
+                      group
+                    </span>
                     {professionalNames(s)}
                   </p>
                 )}
@@ -288,7 +293,9 @@ export default function ServicesManager() {
                 className="text-[#dc3545] hover:text-[#c82333] transition-colors p-2 rounded-full hover:bg-[#f8d7da] shrink-0 disabled:opacity-50"
               >
                 {deletingId === s.id ? (
-                  <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                  <span className="material-symbols-outlined animate-spin">
+                    progress_activity
+                  </span>
                 ) : (
                   <span className="material-symbols-outlined">delete</span>
                 )}

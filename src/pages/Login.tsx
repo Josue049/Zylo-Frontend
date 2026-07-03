@@ -1,5 +1,6 @@
 import { useState } from "react";
 import HeaderClose from "../components/HeaderClose";
+import { apiFetch } from "../utils/api";
 
 type AccountType = "user" | "business";
 type LoginError =
@@ -30,41 +31,22 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      // 1. Petición POST a la API de producción (según Swagger)
-      const response = await fetch(
-        "https://backend-zylo.vercel.app/auth/login",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: email.trim(),
-            password: password,
-          }),
-        },
-      );
-
-      const data = await response.json();
+      const data = await apiFetch("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({
+          email: email.trim(),
+          password: password,
+        }),
+      });
 
       // 2. Si el servidor responde con un error de credenciales
-      if (!response.ok) {
-        if (response.status === 404 || data.detail?.includes("not found")) {
-          setLoginError("not_found");
-        } else if (
-          response.status === 401 ||
-          data.detail?.includes("password")
-        ) {
-          setLoginError("wrong_password");
-        } else {
-          setLoginError("server_error");
-        }
-        return;
-      }
-
       // 3. Validación del rol o tipo de cuenta devuelto por la API
-      // Nota: El backend suele devolver 'account_type' o 'role'. Ajusta 'data.account_type' si es necesario.
-      const userAccountType = data.account_type || data.user?.account_type;
+      const userAccountType =
+        data.user?.role === "business_owner"
+          ? "business"
+          : data.user?.role === "client"
+            ? "user"
+            : data.account_type || data.user?.account_type;
 
       if (userAccountType && userAccountType !== mode) {
         setLoginError("wrong_mode");
@@ -75,18 +57,31 @@ export default function Login() {
       localStorage.setItem(
         "zylo_session",
         JSON.stringify({
-          token: data.access_token || data.token,
-          email: data.email || email,
-          name: data.name || data.user?.name || "Usuario",
+          token: data.token,
+          email: data.user?.email || email,
+          name: data.user?.name || "Usuario",
           accountType: data.account_type || mode,
-          userId: data.id || data.user?.id,
+          userId: data.user?.id,
+          businessId: data.user?.business_id ?? null,
         }),
       );
 
       window.location.href = mode === "business" ? "/BusinessHome" : "/home";
     } catch (error) {
+      const status = (error as { response?: { status?: number } })?.response
+        ?.status;
+      const detail = String(
+        (error as { response?: { data?: { detail?: string } } })?.response?.data
+          ?.detail ?? "",
+      );
+      if (status === 404 || detail.toLowerCase().includes("not found")) {
+        setLoginError("not_found");
+      } else if (status === 401 || detail.toLowerCase().includes("password")) {
+        setLoginError("wrong_password");
+      } else {
+        setLoginError("server_error");
+      }
       console.error("Error en la conexión:", error);
-      setLoginError("server_error");
     } finally {
       setIsLoading(false);
     }

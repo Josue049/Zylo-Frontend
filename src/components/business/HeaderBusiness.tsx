@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import NotificationBell from "../NotificationBell";
+import { apiFetch } from "../../utils/api";
 
 function getSessionEmail(): string {
   try {
@@ -14,12 +15,32 @@ function getSessionEmail(): string {
 export default function HeaderBusiness() {
   const navigate = useNavigate();
   const [sessionEmail] = useState<string>(() => getSessionEmail());
+  const [displayPhoto, setDisplayPhoto] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadProfile() {
+      try {
+        const data = await apiFetch("/businesses/me");
+        if (active) {
+          setDisplayPhoto(data.business?.image_url ?? null);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    loadProfile();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const navItems = [
     { label: "Dashboard", to: "/businessHome" },
-    { label: "Reservas", to: "/reservations" },
     { label: "Mensajes", to: "/business-messages" },
-    { label: "Clientes", to: "/profile" },
   ];
 
   return (
@@ -55,11 +76,17 @@ export default function HeaderBusiness() {
           onClick={() => navigate("/profile")}
           className="w-10 h-10 rounded-full bg-[#e4e2e1] overflow-hidden"
         >
-          <img
-            alt="User Profile"
-            className="w-full h-full object-cover"
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBHs5C4K4pnPEFGLhQzFx964g_j3yT3Sa8V3Cfi-5iODayL26eSFSrk_lViSvmCZrOXdBri3IzmsJV7tDXUggwXCRtafp9N0Uq9aZj-ePoZ7Fl0ESlrv1XZCbKYb5RlBahqICpSx7-qJzj6v3YFOulNpEa6gyb2wRRw9yeHIgM472KwGmSys_SWeewXwoQ7HaH_IiUtD5nJpk4NgHNmgIQn02Yc1NA3cohUy9YO6iiq8EzQhHu1NQtoU7y0y_yTTVcBfvfXcN3e52Zj"
-          />
+          {displayPhoto ? (
+            <img
+              alt="User Profile"
+              className="w-full h-full object-cover"
+              src={displayPhoto}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-sm text-gray-500">
+              ?
+            </div>
+          )}
         </button>
       </div>
     </header>

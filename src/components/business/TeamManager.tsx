@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { getSession } from "../../hooks/userCurrentUser";
-
-const BASE_URL = "https://backend-zylo.vercel.app";
+import { apiFetch } from "../../utils/api";
 
 type TeamMember = {
   id: string;
@@ -9,23 +8,6 @@ type TeamMember = {
   role?: string;
   photo?: string;
 };
-
-async function apiFetch(path: string, options?: RequestInit) {
-  const session = getSession();
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session?.token}`,
-      ...(options?.headers || {}),
-    },
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || "Error del servidor");
-  }
-  return res.json();
-}
 
 function makeId() {
   return "mbr_" + Math.random().toString(36).slice(2, 10);
@@ -45,17 +27,10 @@ export default function TeamManager() {
     const load = async () => {
       try {
         const session = getSession();
-        // 1. Get business_id
-        const meRes = await fetch(`${BASE_URL}/auth/me`, {
-          headers: { Authorization: `Bearer ${session?.token}` },
-        });
-        if (!meRes.ok) throw new Error("No se pudo obtener el perfil");
-        const meData = await meRes.json();
-        const businessId = meData.user?.business_id;
+        const businessId = session?.businessId;
         if (!businessId) throw new Error("No se encontró el negocio asociado");
         businessIdRef.current = businessId;
 
-        // 2. Load team from correct endpoint
         const teamData = await apiFetch(`/businesses/${businessId}/team`);
         setTeam(teamData.items || []);
       } catch (e: any) {
@@ -108,7 +83,7 @@ export default function TeamManager() {
 
   const updateMember = (id: string, field: keyof TeamMember, value: string) => {
     setTeam((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, [field]: value } : m))
+      prev.map((m) => (m.id === id ? { ...m, [field]: value } : m)),
     );
   };
 
@@ -122,7 +97,9 @@ export default function TeamManager() {
           className="bg-primary text-white px-5 py-2 rounded-full font-semibold hover:bg-[#962700] transition-colors active:scale-95 disabled:opacity-50 flex items-center gap-2"
         >
           {saving ? (
-            <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+            <span className="material-symbols-outlined animate-spin text-sm">
+              progress_activity
+            </span>
           ) : (
             <span className="material-symbols-outlined text-sm">save</span>
           )}
@@ -140,7 +117,9 @@ export default function TeamManager() {
       )}
       {success && (
         <div className="bg-[#d4edda] text-[#155724] px-4 py-3 rounded-lg text-sm flex items-center gap-2">
-          <span className="material-symbols-outlined text-sm">check_circle</span>
+          <span className="material-symbols-outlined text-sm">
+            check_circle
+          </span>
           Equipo guardado correctamente
         </div>
       )}
@@ -171,7 +150,9 @@ export default function TeamManager() {
             className="bg-primary text-white px-5 py-3 rounded-lg font-semibold hover:bg-[#962700] transition-colors active:scale-95 disabled:opacity-50"
           >
             {saving ? (
-              <span className="material-symbols-outlined animate-spin">progress_activity</span>
+              <span className="material-symbols-outlined animate-spin">
+                progress_activity
+              </span>
             ) : (
               <span className="material-symbols-outlined">person_add</span>
             )}
@@ -182,11 +163,15 @@ export default function TeamManager() {
       {/* Team list */}
       {loading ? (
         <div className="flex justify-center py-8">
-          <span className="material-symbols-outlined animate-spin text-primary text-3xl">progress_activity</span>
+          <span className="material-symbols-outlined animate-spin text-primary text-3xl">
+            progress_activity
+          </span>
         </div>
       ) : team.length === 0 ? (
         <div className="text-center py-10 text-on-surface-variant bg-white rounded-xl">
-          <span className="material-symbols-outlined text-4xl mb-2 block">group</span>
+          <span className="material-symbols-outlined text-4xl mb-2 block">
+            group
+          </span>
           <p>Aún no tienes miembros. Agrega el primero arriba.</p>
         </div>
       ) : (
@@ -203,13 +188,17 @@ export default function TeamManager() {
                 <input
                   className="border border-[#e4e2e1] p-2 rounded-lg flex-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   value={member.name}
-                  onChange={(e) => updateMember(member.id, "name", e.target.value)}
+                  onChange={(e) =>
+                    updateMember(member.id, "name", e.target.value)
+                  }
                   placeholder="Nombre"
                 />
                 <input
                   className="border border-[#e4e2e1] p-2 rounded-lg w-36 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   value={member.role || ""}
-                  onChange={(e) => updateMember(member.id, "role", e.target.value)}
+                  onChange={(e) =>
+                    updateMember(member.id, "role", e.target.value)
+                  }
                   placeholder="Cargo"
                 />
               </div>
@@ -228,7 +217,8 @@ export default function TeamManager() {
       )}
 
       <p className="text-xs text-on-surface-variant text-center">
-        Presiona "Guardar cambios" para actualizar nombres y cargos. Agregar miembro guarda automáticamente.
+        Presiona "Guardar cambios" para actualizar nombres y cargos. Agregar
+        miembro guarda automáticamente.
       </p>
     </div>
   );
