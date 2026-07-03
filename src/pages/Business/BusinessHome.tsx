@@ -74,7 +74,6 @@ function durationLabel(start: string, end: string) {
 
 /* ── Main ── */
 export default function BusinessDashboard() {
-  const [blocked, setBlocked] = useState(true);
   const [activeNav, setActiveNav] = useState(0);
   const [showPanel, setShowPanel] = useState(false);
   const [activePanel, setActivePanel] = useState<

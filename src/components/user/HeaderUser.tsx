@@ -21,14 +21,6 @@ interface Appointment {
 const SESSION_KEY = "zylo_session";
 const APPOINTMENTS_KEY = "zylo_appointments";
 
-function getSession(): { email: string; name: string } | null {
-  try {
-    return JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
-  } catch {
-    return null;
-  }
-}
-
 function getAppointments(): Appointment[] {
   try {
     return JSON.parse(

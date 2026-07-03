@@ -1,6 +1,6 @@
 import axios, { type AxiosRequestConfig } from "axios";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? "https://backend-zylo.vercel.app";
 
 function normalizeHeaders(headers?: HeadersInit) {
   if (!headers) return undefined;
