@@ -42,12 +42,12 @@ export default function Navbar() {
         <div className="flex items-center gap-4">
           <a href="/login">
             <button className="hidden md:block font-headline font-semibold text-sm tracking-tight text-[#2f2f2e] hover:text-[#ab2d00] transition-colors">
-              Login
+              Iniciar Sesión
             </button>
           </a>
           <a href="/register">
             <button className="btn-primary signature-gradient text-[#ffefeb] px-6 py-2.5 rounded-full font-headline font-semibold text-sm tracking-tight hover:scale-[0.98] active:scale-95 transition-all">
-              Join Now
+              Registrarte
             </button>
           </a>
         </div>

@@ -318,7 +318,6 @@ export default function Register() {
                 <InputWrapper icon="person">
                   <input
                     type="text"
-                    placeholder="Tu nombre completo"
                     value={form.name}
                     onChange={set("name")}
                     className={inputClass(!!errors.name)}
@@ -335,7 +334,6 @@ export default function Register() {
                   <InputWrapper icon="storefront">
                     <input
                       type="text"
-                      placeholder="Nombre comercial de tu empresa"
                       value={form.business_name}
                       onChange={set("business_name")}
                       className={inputClass(!!errors.business_name)}
@@ -349,7 +347,6 @@ export default function Register() {
                   <InputWrapper icon="mail">
                     <input
                       type="email"
-                      placeholder="hola@zylo.com"
                       value={form.email}
                       onChange={set("email")}
                       className={inputClass(!!errors.email)}
@@ -362,7 +359,6 @@ export default function Register() {
                   <InputWrapper icon="call">
                     <input
                       type="tel"
-                      placeholder="+51 999 000 000"
                       value={form.phone}
                       onChange={set("phone")}
                       className={inputClass(!!errors.phone)}
@@ -382,7 +378,6 @@ export default function Register() {
                 >
                   <input
                     type={showPassword ? "text" : "password"}
-                    placeholder="Mínimo 8 caracteres"
                     value={form.password}
                     onChange={set("password")}
                     className={inputClass(!!errors.password)}
@@ -406,7 +401,6 @@ export default function Register() {
                 >
                   <input
                     type={showConfirm ? "text" : "password"}
-                    placeholder="Repite tu contraseña"
                     value={form.confirmPassword}
                     onChange={set("confirmPassword")}
                     className={inputClass(!!errors.confirmPassword)}

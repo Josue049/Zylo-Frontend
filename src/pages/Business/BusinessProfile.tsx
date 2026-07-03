@@ -274,9 +274,6 @@ export default function BusinessProfile() {
       return;
     }
 
-    // Pass the full business, services and team so Booking can let the
-    // user choose service -> professional -> time without refetching
-    // (and without relying on hardcoded fallback data).
     navigate(`/booking/${business.id}`, {
       state: {
         business,
@@ -319,7 +316,6 @@ export default function BusinessProfile() {
               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               alt={business.name}
             />
-
             <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
           </div>
 
@@ -359,17 +355,13 @@ export default function BusinessProfile() {
               <div className="flex items-center text-[#ab2d00]">
                 <span
                   className="material-symbols-outlined text-sm"
-                  style={{
-                    fontVariationSettings: "'FILL' 1",
-                  }}
+                  style={{ fontVariationSettings: "'FILL' 1" }}
                 >
                   star
                 </span>
-
                 <span className="text-sm font-bold ml-1">
                   {business.rating.toFixed(1)}
                 </span>
-
                 <span className="text-sm text-[#5c5b5b] ml-2">
                   ({business.reviews_count} reseñas)
                 </span>
@@ -382,7 +374,6 @@ export default function BusinessProfile() {
 
             <div className="flex items-center gap-2 text-[#5c5b5b]">
               <span className="material-symbols-outlined">location_on</span>
-
               <span className="font-medium">{business.address}</span>
             </div>
           </div>
@@ -409,9 +400,7 @@ export default function BusinessProfile() {
                   <span
                     className="material-symbols-outlined text-2xl"
                     style={{
-                      fontVariationSettings: isFavorite
-                        ? "'FILL' 1"
-                        : "'FILL' 0",
+                      fontVariationSettings: isFavorite ? "'FILL' 1" : "'FILL' 0",
                     }}
                   >
                     favorite
@@ -448,7 +437,6 @@ export default function BusinessProfile() {
               <h2 className="font-['Plus_Jakarta_Sans'] text-2xl font-bold mb-4">
                 Acerca de
               </h2>
-
               <p className="text-[#5c5b5b] leading-relaxed text-lg">
                 {business.description}
               </p>
@@ -460,7 +448,6 @@ export default function BusinessProfile() {
                 <h2 className="font-['Plus_Jakarta_Sans'] text-2xl font-bold">
                   Nuestros Servicios
                 </h2>
-
                 <span className="text-sm text-[#5c5b5b]">
                   {services.length} servicio(s)
                 </span>
@@ -498,14 +485,12 @@ export default function BusinessProfile() {
                             content_cut
                           </span>
                         </div>
-
                         <span className="font-bold text-xl text-[#ab2d00]">
                           S/. {service.price}
                         </span>
                       </div>
 
                       <h3 className="font-bold text-lg mb-2">{service.name}</h3>
-
                       <p className="text-sm text-[#5c5b5b] mb-4">
                         {service.description}
                       </p>
@@ -514,7 +499,6 @@ export default function BusinessProfile() {
                         <span className="text-sm text-[#5c5b5b]">
                           ⏱ {service.duration_minutes} min
                         </span>
-
                         <span
                           className={`text-xs px-3 py-1 rounded-full ${
                             service.active
@@ -544,23 +528,11 @@ export default function BusinessProfile() {
               ) : (
                 <div className="flex gap-6 overflow-x-auto pb-4 no-scrollbar">
                   {team.map((member) => (
-                    <div key={member.id} className="flex-shrink-0 w-32 group">
-                      <div className="w-32 h-32 rounded-xl overflow-hidden mb-3 bg-gray-200">
-                        <img
-                          src={
-                            member.image ||
-                            "https://placehold.co/300x300?text=Profesional"
-                          }
-                          alt={member.name}
-                          className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all"
-                        />
-                      </div>
-
-                      <p className="text-sm font-bold text-center">
+                    <div key={member.id} className="flex-shrink-0 w-40 bg-white p-4 rounded-xl shadow-sm border border-[#dfdcdc]/50">
+                      <p className="text-sm font-bold text-left text-[#2f2f2e] mb-1">
                         {member.name}
                       </p>
-
-                      <p className="text-xs text-center text-[#5c5b5b]">
+                      <p className="text-xs text-left text-[#5c5b5b] font-medium">
                         {member.role}
                       </p>
                     </div>
@@ -575,7 +547,6 @@ export default function BusinessProfile() {
                 <h2 className="font-['Plus_Jakarta_Sans'] text-2xl font-bold">
                   Reseñas
                 </h2>
-
                 <span className="text-sm text-[#5c5b5b]">
                   {reviews.length} reseña(s)
                 </span>
@@ -647,8 +618,7 @@ export default function BusinessProfile() {
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-xs font-bold text-[#5c5b5b]">
-                                {review.user_name?.charAt(0)?.toUpperCase() ??
-                                  "?"}
+                                {review.user_name?.charAt(0)?.toUpperCase() ?? "?"}
                               </div>
                             )}
                           </div>
@@ -664,9 +634,7 @@ export default function BusinessProfile() {
                                   className="material-symbols-outlined text-base text-[#ab2d00]"
                                   style={{
                                     fontVariationSettings:
-                                      star <= review.rating
-                                        ? "'FILL' 1"
-                                        : "'FILL' 0",
+                                      star <= review.rating ? "'FILL' 1" : "'FILL' 0",
                                   }}
                                 >
                                   star
@@ -736,14 +704,9 @@ export default function BusinessProfile() {
                     ["sunday", "Domingo"],
                   ].map(([key, label]) => {
                     const value = business.weekly_hours?.[key];
-
                     return (
-                      <div
-                        key={key}
-                        className="flex justify-between items-center"
-                      >
+                      <div key={key} className="flex justify-between items-center">
                         <span>{label}</span>
-
                         <span className="font-semibold">
                           {value && value.length > 0
                             ? value.join(" - ")
@@ -769,7 +732,6 @@ export default function BusinessProfile() {
                     <span className="material-symbols-outlined text-[#ab2d00]">
                       call
                     </span>
-
                     <span>{business.phone}</span>
                   </div>
 
@@ -777,7 +739,6 @@ export default function BusinessProfile() {
                     <span className="material-symbols-outlined text-[#ab2d00]">
                       mail
                     </span>
-
                     <span>{business.email}</span>
                   </div>
                 </div>
@@ -795,16 +756,12 @@ export default function BusinessProfile() {
                 <div className="flex gap-3">
                   <span
                     className="material-symbols-outlined text-[#ab2d00]"
-                    style={{
-                      fontVariationSettings: "'FILL' 1",
-                    }}
+                    style={{ fontVariationSettings: "'FILL' 1" }}
                   >
                     location_on
                   </span>
-
                   <div>
                     <p className="font-semibold">{business.address}</p>
-
                     <p className="text-sm text-[#5c5b5b]">{business.city}</p>
                   </div>
                 </div>
@@ -814,19 +771,16 @@ export default function BusinessProfile() {
               <div className="border-t border-[#dfdcdc] pt-6">
                 <div className="flex justify-between mb-3">
                   <span>Servicios</span>
-
                   <span className="font-bold">{services.length}</span>
                 </div>
 
                 <div className="flex justify-between mb-3">
                   <span>Profesionales</span>
-
                   <span className="font-bold">{team.length}</span>
                 </div>
 
                 <div className="flex justify-between">
                   <span>Reseñas</span>
-
                   <span className="font-bold">{business.reviews_count}</span>
                 </div>
               </div>

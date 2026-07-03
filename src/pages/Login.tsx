@@ -204,7 +204,6 @@ export default function Login() {
                   <div className="relative group">
                     <input
                       type="email"
-                      placeholder="hola@zylo.com"
                       value={email}
                       disabled={isLoading}
                       onChange={(e) => {
@@ -241,7 +240,6 @@ export default function Login() {
                   <div className="relative group">
                     <input
                       type={showPassword ? "text" : "password"}
-                      placeholder="••••••••"
                       value={password}
                       disabled={isLoading}
                       onChange={(e) => {
