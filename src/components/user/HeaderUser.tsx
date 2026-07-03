@@ -69,7 +69,7 @@ export default function Header() {
       }
     }
 
-    loadProfile();
+  loadProfile();
 
     return () => {
       active = false;
@@ -167,14 +167,18 @@ export default function Header() {
               Explorar
             </Link>
 
-            {/* <button
-              onClick={() => setShowReservationsModal(true)}
-              className="text-[#2f2f2e] hover:opacity-80 transition-opacity font-semibold"
+            {/* Se reemplaza el botón modal por un enlace directo a la nueva vista /bookings */}
+            <Link
+              to="/bookings"
+              className={`transition-opacity font-semibold ${
+                currentPath === "/bookings"
+                  ? "text-primary"
+                  : "text-[#2f2f2e] hover:opacity-80"
+              }`}
             >
               Reservas
-            </button> */}
+            </Link>
 
-            {/* ← Favoritos navega a /favorites */}
             <Link
               to="/favorites"
               className={`transition-opacity font-semibold ${
@@ -404,8 +408,9 @@ export default function Header() {
             </div>
 
             <div className="p-6 border-t border-[#e4e2e1] flex justify-end">
+              {/* Ajustado el to a /bookings para mantener consistencia con el Router */}
               <Link
-                to="/reservas"
+                to="/bookings"
                 onClick={() => setShowReservationsModal(false)}
                 className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#8a2400]"
               >

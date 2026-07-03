@@ -6,6 +6,7 @@ import "./index.css";
 import Register from "./pages/Register";
 import Home from "./pages/User/Home";
 import Profile from "./pages/User/UserProfile";
+import Bookings from "./pages/User/Booking"; // Importamos la nueva página de reservas
 import BusinessProfile from "./pages/Business/BusinessProfile";
 import BusinessHome from "./pages/Business/BusinessHome";
 import Messages from "./pages/Messages";
@@ -23,6 +24,7 @@ export default function AppRouter() {
       <Route path="/business-profile" element={<BusinessProfileSelf />} />
       <Route path="/home" element={<Home />} />
       <Route path="/profile" element={<Profile />} />
+      <Route path="/bookings" element={<Bookings />} /> {/* Nueva ruta añadida */}
       <Route path="/businessProfile/:id" element={<BusinessProfile />} />
       <Route path="/businessHome" element={<BusinessHome />} />
       <Route path="/messages" element={<Messages />} />
@@ -32,4 +34,3 @@ export default function AppRouter() {
     </Routes>
   );
 }
-
