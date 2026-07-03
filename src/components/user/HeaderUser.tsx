@@ -18,7 +18,6 @@ interface Appointment {
 }
 
 /* ── Storage helpers ── */
-const SESSION_KEY = "zylo_session";
 const APPOINTMENTS_KEY = "zylo_appointments";
 
 function getAppointments(): Appointment[] {
