@@ -157,34 +157,38 @@ export default function ServicesManager() {
             onChange={(e) => setPrice(e.target.value)}
           />
         </div>
-        <div className="flex gap-4">
-          <input
-            className="border border-[#e4e2e1] p-3 rounded-lg flex-1 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            placeholder="Descripción (opcional)"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-          <input
-            className="border border-[#e4e2e1] p-3 rounded-lg w-32 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            placeholder="Duración (min)"
-            type="number"
-            value={duration}
-            onChange={(e) => setDuration(e.target.value)}
-          />
-          <button
-            onClick={addService}
-            disabled={saving || !name || !price}
-            className="bg-primary text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#962700] transition-colors active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {saving ? (
-              <span className="material-symbols-outlined animate-spin">
-                progress_activity
-              </span>
-            ) : (
-              <span className="material-symbols-outlined">add</span>
-            )}
-          </button>
-        </div>
+        <div className="space-y-4">
+  <textarea
+    className="w-full border border-[#e4e2e1] p-3 rounded-lg min-h-[120px] resize-y focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+    placeholder="Descripción (opcional)"
+    value={description}
+    onChange={(e) => setDescription(e.target.value)}
+  />
+
+  <div className="flex gap-4">
+    <input
+      className="border border-[#e4e2e1] p-3 rounded-lg w-40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+      placeholder="Duración (min)"
+      type="number"
+      value={duration}
+      onChange={(e) => setDuration(e.target.value)}
+    />
+
+    <button
+      onClick={addService}
+      disabled={saving || !name || !price}
+      className="bg-primary text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#962700] transition-colors active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      {saving ? (
+        <span className="material-symbols-outlined animate-spin">
+          progress_activity
+        </span>
+      ) : (
+        <span className="material-symbols-outlined">add</span>
+      )}
+    </button>
+  </div>
+</div>
 
         {/* Professional selection */}
         <div>

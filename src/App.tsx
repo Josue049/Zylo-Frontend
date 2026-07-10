@@ -24,7 +24,7 @@ export default function AppRouter() {
       <Route path="/business-profile" element={<BusinessProfileSelf />} />
       <Route path="/home" element={<Home />} />
       <Route path="/profile" element={<Profile />} />
-      <Route path="/bookings" element={<Bookings />} /> {/* Nueva ruta añadida */}
+      <Route path="/bookings" element={<Bookings />} />
       <Route path="/businessProfile/:id" element={<BusinessProfile />} />
       <Route path="/businessHome" element={<BusinessHome />} />
       <Route path="/messages" element={<Messages />} />
