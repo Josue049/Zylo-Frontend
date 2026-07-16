@@ -38,7 +38,7 @@ interface Booking {
   start_at: string;
   end_at: string;
   notes?: string;
-  status?: string;
+  status: string;
   price: number;
 }
 
@@ -109,12 +109,11 @@ export default function BusinessDashboard() {
   }, []);
 
   useEffect(() => {
-    apiFetch("/businesses/me/bookings")
+    apiFetch("/businesses/me/bookings/accepted")
       .then((data) => {
         const bookings: Booking[] = data.items || [];
 
         if (bookings.length === 0) {
-          setAgenda([]);
           return;
         }
 
@@ -128,25 +127,17 @@ export default function BusinessDashboard() {
         });
 
         weekDays.forEach((date) => {
-          const dayStart = new Date(date);
-          dayStart.setHours(0, 0, 0, 0);
-          const dayEnd = new Date(date);
-          dayEnd.setHours(23, 59, 59, 999);
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const day = String(date.getDate()).padStart(2, "0");
+          const dateStr = `${year}-${month}-${day}`;
 
           const dayBookings = bookings.filter((b) => {
-            const bookingDate = new Date(b.start_at);
-            return bookingDate >= dayStart && bookingDate <= dayEnd;
+            const match = b.start_at?.startsWith(dateStr);
+            return match;
           });
 
           dayBookings.forEach((b) => {
-            const normalizedStatus = (b.status || "").toLowerCase();
-            const isActive = ![
-              "canceled",
-              "cancelled",
-              "rejected",
-              "rechazado",
-            ].includes(normalizedStatus);
-
             items.push({
               dayLabel: date.toLocaleDateString("es-ES", {
                 weekday: "short",
@@ -159,7 +150,7 @@ export default function BusinessDashboard() {
               initials: (b.user_name || "U").slice(0, 2).toUpperCase(),
               avatarColor:
                 avatarColors[Math.floor(Math.random() * avatarColors.length)],
-              active: isActive,
+              active: true,
             });
           });
         });
@@ -261,6 +252,8 @@ export default function BusinessDashboard() {
               ))}
             </div>
           </div>
+
+
         </section>
 
         {/* ── Agenda + Sidebar ── */}
@@ -353,6 +346,7 @@ export default function BusinessDashboard() {
                 </div>
               </div>
             )}
+
           </aside>
         </div>
 

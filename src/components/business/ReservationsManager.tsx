@@ -14,54 +14,18 @@ type Reservation = {
 export default function ReservationsManager() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
 
-  const normalizeStatus = (status: string) => {
-    switch ((status || "").toLowerCase()) {
-      case "pending":
-      case "pendiente":
-        return "Pendiente";
-
-      case "accepted":
-      case "aceptada":
-      case "aceptado":
-        return "Aceptada";
-
-      case "rejected":
-      case "rechazada":
-      case "rechazado":
-        return "Rechazada";
-
-      case "canceled":
-      case "cancelled":
-      case "cancelada":
-      case "cancelado":
-        return "Cancelada";
-
-      case "completed":
-      case "completada":
-      case "completado":
-        return "Completada";
-
-      default:
-        return status;
-    }
-  };
-
   useEffect(() => {
     apiFetch("/businesses/me/bookings")
       .then((data) => {
         if (data && Array.isArray(data.items)) {
           const adapted = data.items.map((b: any) => ({
             id: b.id,
-            cliente: b.user_name || "Cliente",
-            servicio: b.service_name || "Servicio",
-            fecha: b.start_at
-              ? new Date(b.start_at).toLocaleString("es-ES")
-              : "Sin fecha",
-            estado: normalizeStatus(b.status),
+            cliente: b.user_name,
+            servicio: b.service_name,
+            fecha: new Date(b.start_at).toLocaleString(),
+            estado: b.status,
             userId: b.user_id,
-            businessName: b.business_name,
           }));
-
           setReservations(adapted);
         }
       })
@@ -77,32 +41,13 @@ export default function ReservationsManager() {
         body: JSON.stringify({ status }),
       });
 
-      setReservations((prev) =>
-        prev.map((r) =>
-          r.id === id ? { ...r, estado: normalizeStatus(status) } : r,
-        ),
+      const updated = reservations.map((r) =>
+        r.id === id ? { ...r, estado: status } : r,
       );
+
+      setReservations(updated);
     } catch (error) {
       console.error("Error:", error);
-    }
-  };
-
-  const statusClass = (estado: string) => {
-    switch (normalizeStatus(estado)) {
-      case "Aceptada":
-        return "bg-[#d4edda] text-[#155724]";
-
-      case "Rechazada":
-        return "bg-[#f8d7da] text-[#721c24]";
-
-      case "Cancelada":
-        return "bg-[#f8d7da] text-[#721c24]";
-
-      case "Completada":
-        return "bg-[#d1ecf1] text-[#0c5460]";
-
-      default:
-        return "bg-[#fff3cd] text-[#856404]";
     }
   };
 
@@ -120,26 +65,26 @@ export default function ReservationsManager() {
               <h3 className="font-headline text-lg font-bold text-[#2f2f2e]">
                 {r.cliente}
               </h3>
-
               <span
-                className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${statusClass(
-                  r.estado,
-                )}`}
+                className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                  r.estado === "accepted"
+                    ? "bg-[#d4edda] text-[#155724]"
+                    : r.estado === "rejected"
+                      ? "bg-[#f8d7da] text-[#721c24]"
+                      : "bg-[#fff3cd] text-[#856404]"
+                }`}
               >
-                {normalizeStatus(r.estado)}
+                {r.estado}
               </span>
             </div>
-
             <div className="space-y-2">
               <p className="text-on-surface-variant text-sm">
                 <span className="font-semibold">Servicio:</span> {r.servicio}
               </p>
-
               <p className="text-on-surface-variant text-sm">
                 <span className="font-semibold">Fecha:</span> {r.fecha}
               </p>
             </div>
-
             <div className="flex gap-3">
               <button
                 onClick={() => changeStatus(r.id, "accepted")}
@@ -147,7 +92,6 @@ export default function ReservationsManager() {
               >
                 Aceptar
               </button>
-
               <button
                 onClick={() => changeStatus(r.id, "rejected")}
                 className="bg-[#dc3545] text-white px-4 py-2 rounded-full font-semibold hover:bg-[#c82333] transition-colors active:scale-95"
