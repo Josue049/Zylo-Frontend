@@ -33,6 +33,7 @@ export default function ReservationsManager() {
       case "canceled":
       case "cancelled":
       case "cancelada":
+      case "cancelado":
         return "Cancelada";
 
       case "completed":
@@ -51,9 +52,11 @@ export default function ReservationsManager() {
         if (data && Array.isArray(data.items)) {
           const adapted = data.items.map((b: any) => ({
             id: b.id,
-            cliente: b.user_name,
-            servicio: b.service_name,
-            fecha: new Date(b.start_at).toLocaleString(),
+            cliente: b.user_name || "Cliente",
+            servicio: b.service_name || "Servicio",
+            fecha: b.start_at
+              ? new Date(b.start_at).toLocaleString("es-ES")
+              : "Sin fecha",
             estado: normalizeStatus(b.status),
             userId: b.user_id,
             businessName: b.business_name,
@@ -76,9 +79,7 @@ export default function ReservationsManager() {
 
       setReservations((prev) =>
         prev.map((r) =>
-          r.id === id
-            ? { ...r, estado: normalizeStatus(status) }
-            : r,
+          r.id === id ? { ...r, estado: normalizeStatus(status) } : r,
         ),
       );
     } catch (error) {
